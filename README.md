@@ -21,6 +21,7 @@ To learn more about Hopper, check out our [paper](https://arxiv.org/pdf/2309.034
 ```
 
 The script will create a `install` directory in hopper's root directory, then you can use `hopper`.
+To use the command anywhere, you can set your project directory in your PATH variable.
 
 ### Using Docker
 You can choose to use the Dockerfile, which build the requirements and Hopper.
