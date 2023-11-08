@@ -230,11 +230,14 @@ gcc -I/path-to-head -L/path-to-lib -l:libcjson.so test.c -o test
 RUST_BACKTRACE=1 cargo test -- --nocapture
 ```
 
-### Testsuite (test libraties)
+### Testsuite (test libraries)
 - [How to run and write testuite](./testsuite/README.md)
 
+### Real world examples
+- [Examples](./examples/)
+
 ## Evaluating results via source-based code coverage
-- Compile the libraies' source code with LLVM source-based code sanitizer(https://clang.llvm.org/docs/SourceBasedCodeCoverage.html). You should set the compiling flags, e.g. 
+- Compile the libraies' source code with [LLVM source-based code sanitizer](https://clang.llvm.org/docs/SourceBasedCodeCoverage.html). You should set the compiling flags, e.g. 
 
 ```
 export CFLAGS="${CFLAGS:-} -fprofile-instr-generate -fcoverage-mapping -gline-tables-only -g"
@@ -253,7 +256,7 @@ SEED_DIR=./output/queue hopper cov output_cov
 ```
 
 ## Contributing guidelines
-We have listed some tasks in [Readmap](https://github.com/FuzzAnything/hopper/discussions/2).
+We have listed some tasks in [Roadmap](https://github.com/FuzzAnything/hopper/discussions/2).
 If you are interested, please feel free to discuss with us and contribute your code.
 
 ### Coding
