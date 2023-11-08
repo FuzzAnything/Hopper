@@ -1,0 +1,33 @@
+[package]
+name = "hopper-harness"
+version = "1.0.0"
+edition = "2021"
+authors = ["Peng Chen <spinpx@gmail.com>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hopper = { path = "../hopper-core" }
+log = "0.4"
+time = "0.3"
+flexi_logger = "0.22"
+clap = { version = "4.2", features = ["derive"] }
+linkme = { version = "0.3", optional = true }
+eyre = "0.6"
+color-eyre = { version = "0.6", default-features = false }
+rand = "0.8"
+regex = "1"
+
+[build-dependencies]
+bindgen = "0.65"
+hopper-derive-impl = { path = "../hopper-derive-impl" }
+
+[features]
+default = ["ctor_hook"]
+link_hook = ["linkme", "hopper/link_hook", "hopper-derive-impl/link_hook"]
+ctor_hook = ["hopper/ctor_hook", "hopper-derive-impl/ctor_hook"]
+llvm_mode = ["hopper/llvm_mode"]
+e9_mode = ["hopper/e9_mode"]
+cov_mode = []
+verbose = ["hopper/verbose"]
+testsuite = ["hopper/testsuite"]

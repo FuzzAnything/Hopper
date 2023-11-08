@@ -1,0 +1,14 @@
+// func_include cms*
+// func_exclude cmsCreateBCHSWabstractProfile,cmsCreateBCHSWabstractProfileTHR
+// func_exclude cmsSetLogErrorHandler,cmsSetLogErrorHandlerTHR
+// func_exclude cmsPlugin,cmsPluginTHR,cmsUnregisterPlugins,cmsUnregisterPluginsTHR
+func_include cmsOpenProfileFromMem,cmsCreate_sRGBProfile,cmsCreateTransform,cmsDoTransform
+
+// type _cmsContext_struct* = $null
+// func cmsCreateContext[$0] = $null
+// func cmsCreateContext[$1] = $null
+
+// alias hModel <- cmsCIECAM02Init[$ret],cmsCIECAM02Done[$0],cmsCIECAM02Forward[$0],cmsCIECAM02Reverse[$0]
+// alias hDict <- cmsDictAlloc[$ret],cmsDictFree[$0],cmsDictDup[$0],cmsDictAddEntry[$0],cmsDictGetEntryList[$0]
+// alias ITHandle <- cmsIT8LoadFromMem[$ret],cmsIT8Free[$0]
+// alias hGBD <- cmsGBDAlloc[$ret],cmsGBDFree[$0],cmsGDBAddPoint[$0],cmsGDBCompute[$0],cmsGDBCheckPoint[$0]

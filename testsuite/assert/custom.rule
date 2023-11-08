@@ -1,0 +1,2 @@
+assert test_assert_eq == 0
+assert test_assert_neq != 1

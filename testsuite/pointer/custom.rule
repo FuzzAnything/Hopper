@@ -1,0 +1,3 @@
+func test_custom_cast[$0] = $cast_from(*mut u32)
+func test_custom_cast2[$1] = $cast_from(*mut ListNode)
+// type Partial = $opaque 

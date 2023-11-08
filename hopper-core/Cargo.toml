@@ -1,0 +1,67 @@
+[package]
+name = "hopper"
+version = "1.0.0"
+edition = "2021"
+authors = ["Peng Chen <spinpx@gmail.com>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hopper-derive = { path = "../hopper-derive", features = ["use_crate"] }
+rand = "0.8"
+rand_core = "0.6"
+log = "0.4"
+thiserror = "1.0"
+downcast-rs = "1.2"
+nix = "0.24"
+libc = "0.2"
+once_cell = "1.1"
+wait-timeout = "0.2"
+clap = { version = "4.2", features = ["derive"] }
+linkme = { version = "0.3", optional = true }
+ctrlc = { version = "3.2", features = ["termination"] }
+num-traits = "0.2"
+num = "0.4"
+dyn-clone = "1.0"
+paste = "1.0"
+findshlibs = "0.10"
+region = "3.0"
+eyre = "0.6"
+twoway = "0.2"
+base64 = "0.13"
+regex = "1"
+serde_json = "1.0"
+
+#[cfg(target_os = "windows")]
+uds_windows = "1.0.1"
+#[cfg(target_os = "windows")]
+ntapi = "0.3.7"
+#[cfg(target_os = "windows")]
+winapi = { version = "0.3", features = [
+     "profileapi",
+     "sysinfoapi",
+     "errhandlingapi",
+     "processthreadsapi",
+     "libloaderapi",
+     "consoleapi",
+     "winbase",
+     "processenv",
+     "wow64apiset",
+     "synchapi",
+     "memoryapi"
+ ] }
+ 
+[build-dependencies]
+cc = "1.0"
+
+[features]
+default = ["ctor_hook", "fat_bucket"] # "slices"
+ctor_hook = []
+link_hook = ["linkme"]
+e9_mode = []
+llvm_mode = []
+select_timeout = []
+fat_bucket = []
+slices = []
+verbose = []
+testsuite = []

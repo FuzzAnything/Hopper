@@ -1,0 +1,22 @@
+func_include sqlite3_*
+func_exclude sqlite3_sleep,sqlite3_mprintf,sqlite3_vmprintf,sqlite3_snprintf,sqlite3_vsnprintf
+// func_key sqlite3_exec,sqlite3_get_table,sqlite3_step,sqlite3_complete
+// sqlite3_prepare, sqlite3_prepare_v2, sqlite3_step
+// our file name is not uft16
+func_exclude sqlite3_open16,sqlite3_realloc,sqlite3_realloc64
+func_exclude sqlite3_vtab_nochange,sqlite3_vtab_rhs_value,sqlite3_free_filename
+func_exclude sqlite3_overload_function,sqlite3_test_control,sqlite3_drop_modules
+func_exclude sqlite3_mutex_try,sqlite3_mutex_enter,sqlite3_mutex_free,sqlite3_mutex_leave,sqlite3_mutex_alloc
+func_exclude sqlite3_filename_wal,sqlite3_value_free,sqlite3_free_table
+func_exclude sqlite3_result_*
+func_exclude sqlite3_context_db_handle,sqlite3_aggregate_context,sqlite3_user_data,sqlite3_aggregate_count
+
+// func sqlite3_open[$0] = $write_file
+// func sqlite3_open_v2[$0] = $write_file
+// func sqlite3_open16[$0] = $write_file
+// func sqlite3_open[$1][&] = $non_null
+// func sqlite3_open_v2[$1] = $non_null
+// func sqlite3_open16[$1] = $non_null
+
+// type sqlite3* = $init_with(sqlite3_open, 1)
+// type sqlite3_stmt* = $init_with(sqlite3_prepare_v2, 3)

@@ -1,0 +1,22 @@
+[package]
+name = "hopper-derive"
+version = "1.0.0"
+edition = "2021"
+authors = ["Peng Chen <spinpx@gmail.com>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+syn = {version = "1.0", features = ["full", "visit"]} 
+quote = "1.0"
+proc-macro2 = "1"
+hopper-derive-impl = { path = "../hopper-derive-impl" }
+
+[dev-dependencies]
+hopper = { path = "../hopper-core" }
+
+[lib]
+proc-macro = true
+
+[features]
+use_crate = ["hopper-derive-impl/use_crate"]

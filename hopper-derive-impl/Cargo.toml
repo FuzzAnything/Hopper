@@ -1,0 +1,18 @@
+[package]
+name = "hopper-derive-impl"
+version = "1.0.0"
+edition = "2021"
+authors = ["Peng Chen <spinpx@gmail.com>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+syn = {version = "1.0", features = ["full", "visit", "fold"]} 
+quote = "1.0"
+proc-macro2 = "1"
+
+[features]
+default = ["ctor_hook"]
+ctor_hook = []
+link_hook = []
+use_crate = []

@@ -1,0 +1,17 @@
+func_include png_*
+# func_include png_create_read_struct,png_create_write_struct,png_create_info_struct,png_init_io,png_set_sig_bytes,png_set_crc_action
+# func_target png_set_unknown_chunks
+
+# DEPRECATED
+func_exclude png_info_init_3,png_convert_to_rfc1123,png_malloc_default,png_free_default,png_get_io_chunk_name,png_reset_zstream
+# lead to errors
+func_exclude png_get_io_state,png_set_read_fn,png_set_write_fn,png_set_rows,png_set_user_transform_info,png_read_image,png_set_read_user_transform_fn,png_benign_error,png_set_error_fn,png_free_data
+
+# func png_create_read_struct[$0] = "1.6.37";
+# func png_create_read_struct[$1] = $null;
+# func png_create_read_struct[$2] = $null;
+# func png_create_read_struct[$3] = $null;
+
+func png_image_write_to_file[$4] = 0
+func png_image_write_to_stdio[$4] = 0
+func png_image_write_to_memory[$5] = 0

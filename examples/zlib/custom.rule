@@ -1,0 +1,4 @@
+// func_include *
+func_exclude gzprintf
+// func_include gzfwrite,gzopen
+// func_include gzopen,gzread,gzdopen,gzbuffer,gzclose

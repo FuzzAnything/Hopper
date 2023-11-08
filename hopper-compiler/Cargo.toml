@@ -1,0 +1,24 @@
+[package]
+name = "hopper-compiler"
+version = "1.0.0"
+edition = "2021"
+authors = ["Peng Chen <spinpx@gmail.com>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rand = "0.8"
+log = "0.4"
+simplelog = "0.12"
+goblin = { version = "0.6", optional = true }
+clap = { version = "4.2", features = ["derive"] }
+memmap = "0.7"
+gimli = { version = "0.26", default-features = false, features = ["read"] }
+object = { version = "0.28", default-features = false, features = ["read"] }
+eyre = "0.6"
+twoway = "0.2"
+
+[features]
+default = ["elf", "dwarf"]
+elf = ["goblin"]
+dwarf = []

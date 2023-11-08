@@ -1,0 +1,76 @@
+diff -ruNa ./src/e9patch/e9loader_pe.cpp ./src/e9patch_patch/e9loader_pe.cpp
+--- ./src/e9patch/e9loader_pe.cpp      2022-07-06 17:04:31.091502513 +0800
++++ ./src/e9patch2/e9loader_pe.cpp     2022-07-06 17:06:20.076026514 +0800
+@@ -486,7 +486,7 @@
+             kernel32 = (const uint8_t *)entry->DllBase;
+         else if (e9wcscasecmp(name->Buffer, L"ntdll.dll") == 0)
+             ntdll = (const uint8_t *)entry->DllBase;
+-        else if (e9wcscasecmp(name->Buffer, L"user32.dll") == 0)
++        else if (e9wcscasecmp(name->Buffer, L"msvcrt.dll") == 0)
+             user32 = (const uint8_t *)entry->DllBase;
+         curr = curr->Flink;
+     }
+@@ -516,8 +516,8 @@
+             config->magic[4] != 'T' || config->magic[5] != 'C' ||
+             config->magic[6] != 'H' || config->magic[7] != '\0')
+         e9error("missing \"E9PATCH\" magic number");
+-    if (config->inits != 0x0)
+-        e9error("custom initialization functions are not-yet-implemented");
++    // if (config->inits != 0x0)
++    //     e9error("custom initialization functions are not-yet-implemented");
+     if (config->finis != 0x0)
+         e9error("custom finalization functions are not-yet-implemented");
+     if (config->mmap != 0x0)
+@@ -641,7 +641,18 @@
+         uint32_t old_prot;
+         (void)VirtualProtect(base, config->size, PAGE_EXECUTE_READ, &old_prot);
+     }
+-    
++
++    if (config->inits != 0x0)
++    {
++        const intptr_t *inits = (const intptr_t *)(loader_base + config->inits);
++        typedef void (*init_t)(const struct e9_config_s *config);
++        for (uint32_t i = 0; i < config->num_inits; i++)
++        {
++            init_t init = (init_t)(inits[i]+image_base);
++            init(config);
++        }
++    }
++
+     return entry;
+ }
+ 
+diff -ruNa ./src/e9patch/e9pe.cpp ./src/e9patch2/e9pe.cpp
+--- ./src/e9patch/e9pe.cpp      2022-07-06 17:04:31.091502513 +0800
++++ ./src/e9patch2/e9pe.cpp     2022-07-06 17:06:20.076026514 +0800
+@@ -384,6 +384,16 @@
+     memcpy(data + size, e9loader_pe_bin, sizeof(e9loader_pe_bin));
+     size += sizeof(e9loader_pe_bin);
+ 
++    config->inits = (B->inits.size() > 0? (uint32_t)(size - config_offset): 0);
++    for (auto init: B->inits)
++    {
++        intptr_t addr = BASE_ADDRESS(init);
++        addr |= (IS_ABSOLUTE(init)? E9_ABS_ADDR: 0);
++        memcpy(data + size, &addr, sizeof(addr));
++        size += sizeof(addr);
++        config->num_inits++;
++    }
++
+     uint32_t loader_virtual_size = (uint32_t)(size - config_offset);
+     size = ALIGN(size, file_align);
+     uint32_t loader_disk_size = (uint32_t)(size - config_offset);
+@@ -506,9 +516,9 @@
+         warning("ignoring `--loader-phdr' option for Windows PE binary");
+     if (option_loader_static_set)
+         warning("ignoring `--loader-static' option for Windows PE binary");
+-    if (B->inits.size() > 0)
+-        error("initialization routines are non-yet-implemented for "
+-            "Windows PE binaries");
++    // if (B->inits.size() > 0)
++    //     error("initialization routines are non-yet-implemented for "
++    //         "Windows PE binaries");
+     if (B->finis.size() > 0)
+         error("finalization routines are non-yet-implemented for "
+             "Windows PE binaries");

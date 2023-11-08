@@ -1,0 +1,744 @@
+/*
+ *        ___    _    _____ _     
+ *   ___ / _ \  / \  |  ___| |    
+ *  / _ \ (_) |/ _ \ | |_  | |    
+ * |  __/\__, / ___ \|  _| | |___ 
+ *  \___|  /_/_/   \_\_|   |_____|
+ * 
+ * Copyright (C) 2021 National University of Singapore
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <cassert>
+
+#include <initializer_list>
+#include <map>
+#include <sstream>
+#include <string>
+#include <set>
+#include <vector>
+
+#include "e9plugin.h"
+#include "config.h"
+
+using namespace e9tool;
+int num_bb = 0;
+int num_bad_bb = 0;
+int num_opt_bb = 0;
+
+/*
+ * Options.
+ */
+enum Option
+{
+    OPTION_NEVER,
+    OPTION_DEFAULT,
+    OPTION_ALWAYS
+};
+static Option option_debug      = OPTION_DEFAULT;
+static Option option_instrument = OPTION_DEFAULT;
+static Option option_Oselect    = OPTION_DEFAULT;
+static Option option_Oblock     = OPTION_DEFAULT;
+unsigned int inst_ratio = 100;
+unsigned int map_size_pow2 = MAP_SIZE_POW2;
+unsigned int map_size_mask = (1 << map_size_pow2) - 1;
+
+enum Counter
+{
+    COUNTER_CLASSIC,
+    COUNTER_NEVER_ZERO,
+    COUNTER_SATURATED
+};
+
+static Option parseOption(const char *str)
+{
+    if (strcmp(str, "never") == 0)
+        return OPTION_NEVER;
+    if (strcmp(str, "default") == 0)
+        return OPTION_DEFAULT;
+    if (strcmp(str, "always") == 0)
+        return OPTION_ALWAYS;
+    error("bad option value \"%s\"; expected one of {\"never\", \"default\", "
+        "\"always\"}", str);
+}
+
+static Counter parseCounter(const char *str)
+{
+    if (strcmp(str, "classic") == 0)
+        return COUNTER_CLASSIC;
+    if (strcmp(str, "neverzero") == 0)
+        return COUNTER_NEVER_ZERO;
+    if (strcmp(str, "saturated") == 0)
+        return COUNTER_SATURATED;
+    error("bad counter value \"%s\"; expected one of {\"classic\", \"neverzero\", "
+        "\"saturated\"}", str);
+}
+
+/*
+ * CFG
+ */
+struct BasicBlock
+{
+    std::vector<intptr_t> preds;    // Predecessor BBs
+    std::vector<intptr_t> succs;    // Successor BBs
+    intptr_t instrument = -1;       // Instrumentation point
+    int id              = -1;       // ID
+    bool optimized      = false;    // Optimize block?
+    bool bad            = false;    // Bad block?
+};
+typedef std::map<intptr_t, BasicBlock> CFG;
+#define BB_INDIRECT     (-1)
+
+/*
+ * Paths
+ */
+typedef std::map<BasicBlock *, BasicBlock *> Paths;
+
+/*
+ * All instrumentation points.
+ */
+static std::set<intptr_t> instrument;
+
+/*
+ * Initialization.
+ */
+extern void *e9_plugin_init(const Context *cxt)
+{
+    // Make seed depend on filename.
+    unsigned seed = 0;
+    const char *filename = getELFFilename(cxt->elf);
+    for (int i = 0; filename[i] != '\0'; i++)
+        seed = 101 * seed + (unsigned)filename[i];
+    srand(seed);
+
+    const int32_t stack_adjust = 0x4000;
+    const int32_t afl_rt_ptr   = 0x50000000;
+    const int32_t afl_area_ptr = AREA_BASE;
+
+#ifndef WINDOWS
+    // Reserve memory used by the afl_area_ptr:
+    sendReserveMessage(cxt->out, afl_area_ptr, AREA_SIZE, /*absolute=*/true);
+#endif
+
+    const char *str = nullptr;
+    std::string option_path(".");
+        Counter option_counter = COUNTER_CLASSIC;
+    if ((str = getenv("E9AFL_COUNTER")) != nullptr)
+        option_counter = parseCounter(str);
+    if ((str = getenv("E9AFL_DEBUG")) != nullptr)
+        option_debug = parseOption(str);
+    if ((str = getenv("E9AFL_INSTRUMENT")) != nullptr)
+        option_instrument = parseOption(str);
+    if ((str = getenv("E9AFL_OBLOCK")) != nullptr)
+        option_Oblock = parseOption(str);
+    if ((str = getenv("E9AFL_OSELECT")) != nullptr)
+        option_Oselect = parseOption(str);
+    if ((str = getenv("E9AFL_PATH")) != nullptr)
+        option_path = str;
+    if (option_instrument == OPTION_NEVER)
+        return nullptr;
+    if (option_Oblock == OPTION_ALWAYS)
+        warning("always removing AFL instrumentation for bad blocks; coverage "
+            "may be incomplete");
+    if ((str = getenv("HOPPER_INST_RATIO")) != nullptr) {
+        sscanf(str, "%u", &inst_ratio);
+        if (inst_ratio < 0 || inst_ratio > 100) 
+            inst_ratio = 100;
+    }
+    if ((str = getenv("HOPPER_MAP_SIZE_POW2")) != nullptr) {
+        sscanf(str, "%u", &map_size_pow2);
+        if (map_size_pow2 < 16) map_size_pow2 = 16;
+        if (map_size_pow2 > 20) map_size_pow2 = 20;
+        map_size_mask = (1 << map_size_pow2) - 1;
+    }
+    warning("inst_ratio: %d, map_size_pow2: %d", inst_ratio, map_size_pow2);
+
+    // Send the AFL runtime (if not shared object):
+    /*
+    std::string path(option_path);
+    path += "/hopper-e9-rt";
+    const ELF *rt = parseELF(path.c_str(), afl_rt_ptr);
+    sendELFFileMessage(cxt->out, rt);
+    */
+
+    // Send the AFL instrumentation:
+    //
+    // Save state:
+    //
+    // lea -0x4000(%rsp),%rsp
+    // push %rax
+    // seto %al
+    // lahf
+    // push %rax
+    //
+    std::stringstream code;
+    code << 0x48 << ',' << 0x8d << ',' << 0xa4 << ',' << 0x24 << ','
+         << "{\"int32\":" << -stack_adjust << "},";
+    code << 0x50 << ',';
+    code << 0x0f << ',' << 0x90 << ',' << 0xc0 << ',';
+    code << 0x9f << ',';
+    code << 0x50 << ',';
+
+    // AFL instrumentation:
+#ifndef WINDOWS
+    // mov %fs:0x48,%eax                    // mov prev_loc,%eax
+    // const unsigned TLS = 0x4c;              // tcbhead_t.__glibc_unused1
+    // code << 0x64 << ',' << 0x8b << ',' << 0x04 << ',' << 0x25 << ','
+    //      << TLS  << ',' << 0x00 << ',' << 0x00 << ',' << 0x00 << ',';
+    // code << 0x35 << ',' << "\"$curr_loc\"" << ',';
+    // movl %ds:0x3b0100, %eax
+    code << 0x8b << ',' << 0x04 << ',' << 0x25 << ',' << 0x00 << ',' 
+         << 0x01 << ',' << 0x3b << ',' << 0x00 << ',';
+#else 
+    //// mov 0x47ff2000,%eax                    // mov prev_loc,%eax
+    code << 0x8b << ',' << 0x04 << ',' << 0x25 << ','
+        << 0x00 << ',' << 0x20 << ',' << 0xff << ',' << 0x47 << ',';
+#endif
+    // cmp $0xFFFFFFFF, %eax
+    // je .Lok
+    // xor $curr_loc,%eax
+    code << 0x83 << ',' << 0xf8 << ',' << 0xff << ',';
+    code << 0x74 << ",{\"rel8\":\".Lok\"},";
+    code << 0x35 << ',' << "\"$curr_loc\"" << ',';
+
+#ifndef WINDOWS
+    // push %rbx
+    code << 0x53 << ',';
+    // mov %fs:0x58,%ebx                    // mov context,%ebx
+    // code << 0x64 << ',' << 0x8b << ',' << 0x1c << ',' << 0x25 << ','
+    //      << 0x58 << ',' << 0x00 << ',' << 0x00 << ',' << 0x00 << ',';
+    // mov %ds:0x3b0110,%ebx                    // mov context,%ebx
+    code << 0x8b << ',' << 0x1c << ',' << 0x25 << ',' << 0x10 << ','
+         << 0x01 << ',' << 0x3b << ',' << 0x00 << ',';
+    // xor %ebx, %eax
+    code << 0x31 << ',' << 0xd8 << ',';
+    // pop %rbx
+    code << 0x5b << ',';
+#endif
+
+    switch (option_counter)
+    {
+        default:
+        case COUNTER_CLASSIC:
+            // incb afl_area_ptr(%eax)
+            code << 0x67 << ',' << 0xfe << ',' << 0x80 << ','
+                 << "{\"int32\":" << afl_area_ptr << "},";
+            break;
+        case COUNTER_NEVER_ZERO:
+            // addb $0x1,afl_area_ptr(%eax)
+            // adcb $0x0,afl_area_ptr(%eax)
+            code << 0x67 << ',' << 0x80 << ',' << 0x80 << ','
+                 << "{\"int32\":" << afl_area_ptr << "}," << 0x01 << ',';
+            code << 0x67 << ',' << 0x80 << ',' << 0x90 << ','
+                 << "{\"int32\":" << afl_area_ptr << "}," << 0x00 << ',';
+            break;
+        case COUNTER_SATURATED:
+            // addb $0x1,afl_area_ptr(%eax)
+            // sbbb $0x0,afl_area_ptr(%eax)
+            code << 0x67 << ',' << 0x80 << ',' << 0x80 << ','
+                 << "{\"int32\":" << afl_area_ptr << "}," << 0x01 << ',';
+            code << 0x67 << ',' << 0x80 << ',' << 0x98 << ','
+                 << "{\"int32\":" << afl_area_ptr << "}," << 0x00 << ',';
+            break;
+    }
+#ifndef WINDOWS
+    // movl $(curr_loc>>1),%fs:0x48         // mov (curr_loc>>1),prev_loc
+    // code << 0x64 << ',' << 0xc7 << ',' << 0x04 << ',' << 0x25 << ','
+    //      << 0x48 << ',' << 0x00 << ',' << 0x00 << ',' << 0x00 << ','
+    //      << "\"$curr_loc_1\"" << ',';
+
+    // movl $(curr_loc>>1),%ds:0x3b0100         // mov (curr_loc>>1),prev_loc
+    code << 0xc7 << ',' << 0x04 << ',' << 0x25 << ','
+         << 0x00 << ',' << 0x01 << ',' << 0x3b << ',' << 0x00 << ','
+         << "\"$curr_loc_1\"" << ',';
+#else
+    // movl $(curr_loc>>1),0x47ff2000       // mov (curr_loc>>1),prev_loc
+    code << 0xc7 << ',' << 0x04 << ',' << 0x25 << ','
+        << 0x00 << ',' << 0x20 << ',' << 0xff << ',' << 0x47 << ','
+        << "\"$curr_loc_1\"" << ',';
+#endif
+ 
+    // Restore state:
+    //
+    // .CLok:
+    // pop %rax
+    // add $0x7f,%al
+    // sahf
+    // pop %rax  
+    // lea 0x4000(%rsp),%rsp
+    //
+    code << "\".Lok\",";
+    code << 0x58 << ',';
+    code << 0x04 << ',' << 0x7f << ',';
+    code << 0x9e << ',';
+    code << 0x58 << ',';
+    code << 0x48 << ',' << 0x8d << ',' << 0xa4 << ',' << 0x24 << ','
+         << "{\"int32\":" << stack_adjust << "},";
+
+    sendTrampolineMessage(cxt->out, "$afl", code.str().c_str());
+
+    return nullptr;
+}
+
+/*
+ * Normalize a block address.
+ */
+static intptr_t normalize(intptr_t addr, const Targets &targets)
+{
+    if (addr == BB_INDIRECT)
+        return BB_INDIRECT;
+    auto i = targets.lower_bound(addr);
+    if (i == targets.end())
+        return BB_INDIRECT;
+    return i->first;
+}
+
+/*
+ * Add a predecessor block.
+ */
+static void addPredecessor(intptr_t pred, intptr_t succ,
+    const Targets &targets, CFG &cfg)
+{
+    pred = normalize(pred, targets);
+    succ = normalize(succ, targets);
+    auto j = cfg.find(succ);
+    if (j == cfg.end())
+    {
+        BasicBlock empty;
+        auto r = cfg.insert({succ, empty});
+        j = r.first;
+    }
+    j->second.preds.push_back(pred);
+}
+
+/*
+ * Add a successor block.
+ */
+static void addSuccessor(intptr_t pred, intptr_t succ,
+    const Targets &targets, CFG &cfg)
+{
+    pred = normalize(pred, targets);
+    succ = normalize(succ, targets);
+    auto j = cfg.find(pred);
+    if (j == cfg.end())
+    {
+        BasicBlock empty;
+        auto r = cfg.insert({pred, empty});
+        j = r.first;
+    }
+    j->second.succs.push_back(succ);
+}
+
+/*
+ * Build the CFG from the set of jump targets.
+ */
+static void buildCFG(const ELF *elf, const Instr *Is, size_t size,
+    const Targets &targets, CFG &cfg)
+{
+    for (const auto &entry: targets)
+    {
+        intptr_t target = entry.first, bb = target;
+        TargetKind kind = entry.second;
+
+        size_t i = findInstr(Is, size, target);
+        if (i >= size)
+            continue;
+
+        BasicBlock empty;
+        (void)cfg.insert({bb, empty});
+
+        if ((kind & TARGET_INDIRECT) != 0)
+            addPredecessor(BB_INDIRECT, bb, targets, cfg);
+
+        const Instr *I = Is + i;
+
+        for (++i; i < size; i++)
+        {
+            InstrInfo info0, *info = &info0;
+            getInstrInfo(elf, I, info);
+            bool end = false;
+            intptr_t target = -1, next = -1;
+            switch (info->mnemonic)
+            {
+                case MNEMONIC_RET:
+                    end = true;
+                    break;
+                case MNEMONIC_JMP:
+                    end = true;
+                    // Fallthrough:
+                case MNEMONIC_CALL:
+                    if (info->op[0].type == OPTYPE_IMM)
+                        target = (intptr_t)info->address +
+                            (intptr_t)info->size + (intptr_t)info->op[0].imm;
+                    break;
+                case MNEMONIC_JO: case MNEMONIC_JNO: case MNEMONIC_JB:
+                case MNEMONIC_JAE: case MNEMONIC_JE: case MNEMONIC_JNE:
+                case MNEMONIC_JBE: case MNEMONIC_JA: case MNEMONIC_JS:
+                case MNEMONIC_JNS: case MNEMONIC_JP: case MNEMONIC_JNP:
+                case MNEMONIC_JL: case MNEMONIC_JGE: case MNEMONIC_JLE:
+                case MNEMONIC_JG:
+                    end = true;
+                    next = (intptr_t)info->address + (intptr_t)info->size;
+                    target = next + (intptr_t)info->op[0].imm;
+                    break;
+                default:
+                    break;
+            }
+            if (target > 0x0)
+                addPredecessor(bb, target, targets, cfg);
+            if (next > 0x0)
+                addPredecessor(bb, next, targets, cfg);
+            if (end)
+            {
+                if (target > 0)
+                    addSuccessor(bb, target, targets, cfg);
+                if (next > 0)
+                    addSuccessor(bb, next, targets, cfg);
+                if (!(target > 0 || next > 0))
+                    addSuccessor(bb, BB_INDIRECT, targets, cfg);
+                break;
+            }
+            const Instr *J = I+1;
+            if (I->address + I->size != J->address)
+                break;
+            if (targets.find(J->address) != targets.end())
+            {
+                // Fallthrough:
+                addPredecessor(bb, J->address, targets, cfg);
+                addSuccessor(bb, J->address, targets, cfg);
+                break;
+            }
+            I = J;
+        }
+    }
+
+    int id = 0;
+    for (auto &entry: cfg)
+        entry.second.id = id++;
+}
+
+/*
+ * Attempt to optimize away a bad block.
+ */
+static void optimizeBlock(CFG &cfg, BasicBlock &bb);
+static void optimizePaths(CFG &cfg, BasicBlock *pred_bb, BasicBlock *succ_bb, Paths &paths)
+{
+    auto i = paths.find(succ_bb);
+    if (i != paths.end())
+    {
+        // Multiple paths to succ_bb;
+        BasicBlock *unopt_bb = nullptr;
+        if (pred_bb != nullptr)
+            unopt_bb = pred_bb;
+        else if (i->second != nullptr)
+            unopt_bb = i->second;
+
+        // Note: (unopt_bb == nullptr) can happen in degenerate cases, e.g.:
+        // jne .Lnext; .Lnext: ...
+        if (unopt_bb != nullptr)
+        {
+            unopt_bb->optimized = false;
+            optimizeBlock(cfg, *unopt_bb);
+        }
+        return;
+    }
+    paths.insert({succ_bb, pred_bb});
+    if (succ_bb == nullptr || !succ_bb->optimized)
+        return;
+
+    pred_bb = succ_bb;
+    for (auto succ: succ_bb->succs)
+    {
+        auto i = cfg.find(succ);
+        succ_bb = (i == cfg.end()? nullptr: &i->second);
+        optimizePaths(cfg, pred_bb, succ_bb, paths);
+    }
+}
+static void optimizeBlock(CFG &cfg, BasicBlock &bb)
+{
+    if (bb.optimized)
+        return;
+    Paths paths;
+    for (auto succ: bb.succs)
+    {
+        auto i = cfg.find(succ);
+        BasicBlock *succ_bb = (i == cfg.end()? nullptr: &i->second);
+        optimizePaths(cfg, nullptr, succ_bb, paths);
+    }
+}
+
+/*
+ * Verify the optimization is correct (for debugging).
+ */
+static void verify(CFG &cfg, intptr_t curr, BasicBlock *bb,
+    std::set<BasicBlock *> &seen)
+{
+    for (auto succ: bb->succs)
+    {
+        auto i = cfg.find(succ);
+        BasicBlock *succ_bb = (i == cfg.end()? nullptr: &i->second);
+        if (succ_bb == nullptr)
+            fprintf(stderr, " BB_%d->indirect", bb->id);
+        else
+            fprintf(stderr, " BB_%d->BB_%d", bb->id,
+                cfg.find(succ)->second.id);
+        auto r = seen.insert(succ_bb);
+        if (!r.second)
+        {
+            putc('\n', stderr);
+            error("multiple non-instrumented paths detected");
+        }
+        if (succ_bb != nullptr && succ_bb->optimized)
+            verify(cfg, succ, succ_bb, seen);
+    }
+}
+static void verify(CFG &cfg)
+{
+    if (option_Oblock == OPTION_ALWAYS)
+        return;
+    putc('\n', stderr);
+    for (auto &entry: cfg)
+    {
+        BasicBlock *bb = &entry.second;
+        if (bb->optimized)
+            continue;
+        fprintf(stderr, "\33[32mVERIFY\33[0m BB_%d:",
+            cfg.find(entry.first)->second.id);
+        std::set<BasicBlock *> seen;
+        verify(cfg, entry.first, bb, seen);
+        putc('\n', stderr);
+    }
+    putc('\n', stderr);
+}
+
+/*
+ * Calculate all instrumentation points.
+ */
+static void calcInstrumentPoints(const ELF *elf, const Instr *Is, size_t size,
+    Targets &targets, std::set<intptr_t> &instrument)
+{
+    // Step #1: build the CFG:
+    CFG cfg;
+    buildCFG(elf, Is, size, targets, cfg);
+
+    // Step #2: find all instrumentation-points/bad-blocks
+    for (const auto &entry: targets)
+    {
+        intptr_t target = entry.first, bb = target;
+        TargetKind kind = entry.second;
+
+        size_t i = findInstr(Is, size, target);
+        if (i >= size)
+            continue;
+        const Instr *I = Is + i;
+
+        uint8_t target_size = I->size;
+        for (++i; option_Oselect != OPTION_NEVER && i < size &&
+                target_size < /*sizeof(jmpq)=*/5; i++)
+        {
+            InstrInfo info0, *info = &info0;
+            getInstrInfo(elf, I, info);
+            bool end = false;
+            switch (info->mnemonic)
+            {
+                case MNEMONIC_RET:
+                case MNEMONIC_CALL:
+                case MNEMONIC_JMP:
+                case MNEMONIC_JO: case MNEMONIC_JNO: case MNEMONIC_JB:
+                case MNEMONIC_JAE: case MNEMONIC_JE: case MNEMONIC_JNE:
+                case MNEMONIC_JBE: case MNEMONIC_JA: case MNEMONIC_JS:
+                case MNEMONIC_JNS: case MNEMONIC_JP: case MNEMONIC_JNP:
+                case MNEMONIC_JL: case MNEMONIC_JGE: case MNEMONIC_JLE:
+                case MNEMONIC_JG:
+                    end = true;
+                    break;
+                default:
+                    break;
+            }
+            if (end)
+                break;
+            const Instr *J = I+1;
+            if (I->address + I->size != J->address)
+                break;
+            if (targets.find(J->address) != targets.end())
+                break;
+            if (J->size > target_size)
+            {
+                target      = J->address;
+                target_size = J->size;
+            }
+            I = J;
+        }
+        auto j = cfg.find(bb);
+        assert(j != cfg.end());
+        j->second.instrument = target;
+        j->second.bad        = (target_size < /*sizeof(jmpq)=*/5);
+        switch (option_Oblock)
+        {
+            case OPTION_NEVER:
+                j->second.optimized = false;
+                break;
+            case OPTION_DEFAULT:
+                // To be refined in Step #3
+                // j->second.optimized = (j->second.bad && (kind & TARGET_INDIRECT) == 0);
+                // FIXME: hopper does not optimize the blocks that has multiple preds!
+                //        this can make the branch counting more accurate.
+                //        and optimize blocks with single suc and single pred
+                if ((kind & TARGET_INDIRECT) == 0 && j->second.preds.size() <= 1) {
+                    if (j->second.succs.size() <= 1 || j->second.bad) {
+                        j->second.optimized = true;
+                    }
+                } else {
+                    j-> second.optimized = false;
+                }
+                break;
+            case OPTION_ALWAYS:
+                j->second.optimized = j->second.bad;
+                break;
+        }
+    }
+
+    // Step #3: Optimize away bad blocks:
+    if (option_Oblock == OPTION_DEFAULT)
+        for (auto &entry: cfg)
+            optimizeBlock(cfg, entry.second);
+
+    // Step #4: Collect final instrumentation points.
+    for (auto &entry: cfg)
+    {
+        num_bb += 1;
+        if (entry.second.bad) {
+            num_bad_bb +=1;
+        }
+        if (entry.second.optimized) {
+            num_opt_bb += 1;
+        } else {
+            instrument.insert(entry.second.instrument);
+        }
+    }
+
+    // Setp #5: Print debugging information (if necessary)
+    for (size_t i = 0; (option_debug == OPTION_ALWAYS) && i < size; i++)
+    {
+        InstrInfo I0, *I = &I0;
+        getInstrInfo(elf, Is + i, I);
+
+        auto j = cfg.find(I->address);
+        if (j != cfg.end())
+        {
+            fprintf(stderr, "\n# \33[32mBB_%d\33[0m%s%s\n", cfg[I->address].id,
+                (j->second.bad? " [\33[31mBAD\33[0m]": ""),
+                (j->second.bad && !j->second.optimized?
+                    " [\33[31mUNOPTIMIZED\33[0m]": ""));
+            fprintf(stderr, "# preds = ");
+            int count = 0;
+            for (auto pred: j->second.preds)
+            {
+                if (count++ != 0)
+                    putc(',', stderr);
+                if (pred == BB_INDIRECT)
+                {
+                    fprintf(stderr, "indirect");
+                    continue;
+                }
+                auto l = cfg.find(pred);
+                if (l != cfg.end())
+                    fprintf(stderr, "BB_%u", l->second.id);
+                else
+                    fprintf(stderr, "%p", (void *)pred);
+            }
+            fprintf(stderr, "\n# succs = ");
+            count = 0;
+            for (auto succ: j->second.succs)
+            {
+                if (count++ != 0)
+                    putc(',', stderr);
+                if (succ == BB_INDIRECT)
+                {
+                    fprintf(stderr, "indirect");
+                    continue;
+                }
+                auto l = cfg.find(succ);
+                if (l != cfg.end())
+                    fprintf(stderr, "BB_%u", l->second.id);
+                else
+                    fprintf(stderr, "%p", (void *)succ);
+            }
+            putc('\n', stderr);
+        }
+        if (instrument.find(I->address) != instrument.end())
+            fprintf(stderr, "%lx: \33[33m%s\33[0m\n", I->address,
+                I->string.instr);
+        else
+            fprintf(stderr, "%lx: %s\n", I->address, I->string.instr);
+    }
+    if (option_debug == OPTION_ALWAYS)
+        verify(cfg);
+}
+
+/*
+ * Events.
+ */
+extern void e9_plugin_event(const Context *cxt, Event event)
+{
+    switch (event)
+    {
+        case EVENT_DISASSEMBLY_COMPLETE:
+        {
+            Targets targets;
+            buildTargets(cxt->elf, cxt->Is->data(), cxt->Is->size(), targets);
+            calcInstrumentPoints(cxt->elf, cxt->Is->data(), cxt->Is->size(),
+                targets, instrument);
+            break;
+        }
+        case EVENT_PATCHING_COMPLETE: {
+            e9tool::warning("bb: %d, bad: %d, opt: %d", num_bb, num_bad_bb, num_opt_bb);
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+/*
+ * Matching.  Return `true' iff we should instrument this instruction.
+ */
+extern intptr_t e9_plugin_match(const Context *cxt)
+{
+    // warning("off: %x, instr: %s", cxt->I->address, cxt->I->string.instr);
+    if ((rand() % 100) >= inst_ratio) return 0;
+    return (instrument.find(cxt->I->address) != instrument.end());
+}
+
+/*
+ * Patch template.
+ */
+extern void e9_plugin_code(const Context *cxt)
+{
+    fputs("\"$afl\",", cxt->out);
+}
+
+/*
+ * Patching.
+ */
+extern void e9_plugin_patch(const Context *cxt)
+{
+    if (instrument.find(cxt->I->address) == instrument.end())
+        return;
+    int32_t curr_loc = rand() & map_size_mask;
+    // warning("off: %x, curr_loc: %d", cxt->I->address, curr_loc);
+    fprintf(cxt->out, "\"$curr_loc\":{\"int32\":%d},", curr_loc);
+    fprintf(cxt->out, "\"$curr_loc_1\":{\"int32\":%d},", curr_loc >> 1);
+}

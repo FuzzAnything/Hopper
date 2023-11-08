@@ -1,0 +1,12 @@
+func_exclude util_static_ret
+
+func test_union[$0] = $use(member1)
+// type ComplicatedStruct["inner_union"] = $use("member2") <- test_complicated_struct[$0]
+// type ComplicatedStruct["ty"] = 2 <- test_complicated_struct[$0]
+func test_complicated_struct[$0][&.$0.inner_union] = $use(member2)
+func test_complicated_struct[$0][&.$0.ty] = 2
+// type ComplicatedStruct["inner_union2"] = $use("num") <- test_complicated_struct[$0]
+// type ComplicatedStruct["inner_union"] = $use("member3") <- test_complicated_struct2[$0]
+// type ComplicatedStruct["ty"] = 3 <- test_complicated_struct2[$0]
+func test_complicated_struct2[$0][&.$0.inner_union] = $use(member3)
+func test_complicated_struct2[$0][&.$0.ty] = 3

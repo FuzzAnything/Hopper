@@ -1,0 +1,6 @@
+// used for generate FILE*
+func_internal fopen
+func fopen[$0] = $read_file;
+func fopen[$1] = $non_null;
+func fopen[$1] = "rb+";
+type _IO_FILE = $opaque

@@ -1,0 +1,194 @@
+#!/bin/bash
+
+# set -exuo pipefail
+
+realpath() {
+    [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
+}
+BIN_PATH=$(realpath "$0")
+ROOT_DIR=$(dirname $BIN_PATH)
+LOG_TYPE=${LOG_TYPE:-info}
+INSTALL_DIR=$ROOT_DIR/install
+HOPPER_HARNESS_ROOT="$ROOT_DIR/hopper-harness"
+ENVS="RUST_LOG=${LOG_TYPE} RUST_BACKTRACE=1 HOPPER_PATH=$INSTALL_DIR"
+COMPILER="$INSTALL_DIR/hopper-compiler"
+USAGE="Usage: $(basename $0) [compile|fuzz|translate|clean|help] ...
+    compile --header [header] --library [library] --output [output] ...
+        use --help to see usage in detail.
+    fuzz [output] --func-pattern [pattern] ...
+        use --help to see usage in detail. 
+    translate [output] --header [header] --input [dsl_input]
+        use --help to see usage in detail. 
+    clean
+        clean generated data during fuzzing
+    You can also define the configurations in a file named hopper.config in current directory, which includes: 
+        TEST_HEADER=xx
+        TEST_LIBRARY=xx
+        OUT_DIR=xx
+        CUSTOM_RULES=xx
+        ..."
+
+source ${ROOT_DIR}/tools/style.sh
+source ${ROOT_DIR}/tools/core_affinity.sh
+
+# load config if exists
+if [[ -e "hopper.config" ]]; then
+    while IFS='=' read -r key value; do
+    if [[ $key && $value ]]; then
+        declare -x "$key=$value"
+        # echo "config file set $key = $value"
+    fi
+    done < "hopper.config"
+fi
+
+CORE_PATTERN=$(cat /proc/sys/kernel/core_pattern)
+if [ "$CORE_PATTERN" != "core" ]; then
+    warn "To avoid having crashes misinterpreted as timeouts, please log in as root"
+    warn "and temporarily modify /proc/sys/kernel/core_pattern, like so:"
+    warn "echo core > /proc/sys/kernel/core_pattern"
+    exit 1
+fi
+
+CMD=${1:-help}
+ARGS=""
+if [ ! -z ${OUT_DIR+x} ]; then
+    OUTPUT_DIR="$OUT_DIR"
+fi
+# if [ -z ${OUTPUT_DIR+x} ]; then
+if [[ ${2:-} = \-* ]] ; then
+    ARGS="$ARGS ${@:2}"
+else 
+    ARGS="$ARGS ${@:3}"
+    OUTPUT_DIR="${2:-output}"
+    # info "set output dir as $OUTPUT_DIR"
+fi
+
+check_output() {
+    if [ -z ${OUTPUT_DIR:-} ]; then
+        error "do not set output directory!!"
+        warn "$USAGE"
+        exit 1
+    fi
+}
+
+[ ! -d "${ROOT_DIR}/install" ] && warn "Please run ./build.sh to build hopper's code"
+
+find_filter() {
+    FILTER=$1
+    for key in $ARGS; do
+        # echo "$key $FILTER"
+        if [[ "$key" == $FILTER ]]; then
+            # echo "key '$key' exists"
+            return 1
+        fi
+    done
+    return 0
+}
+
+set_arg() {
+    # info "arg set $1 = $2"
+    if [ ! -z "$2" ]; then
+        find_filter $1
+        if [[ $? -eq 0 ]]; then
+            ARGS="$ARGS $1 $2" 
+        fi
+    fi
+}
+
+case ${CMD} in
+build)
+    cd $ROOT_DIR
+    ./build.sh
+    ;;
+compile)
+    set_arg --header "${TEST_HEADER:-}"
+    set_arg --library "${TEST_LIBRARY:-}"
+    set_arg --output ${OUTPUT_DIR:-}
+    cmd="$ENVS $COMPILER $ARGS"
+    info "${cmd}"
+    eval ${cmd}
+    ;;
+fuzz)
+    check_output
+    set_arg --timeout-limit ${TIMEOUT_LIMIT:-}
+    set_arg --mem-limit ${MEM_LIMIT:-}
+    set_arg --func-pattern ${FUNC_PATTERN:-}
+    set_arg --custom-rules ${CUSTOM_RULES:-}
+    find_core_for_task_set
+    FUZZER="$OUTPUT_DIR/bin/hopper-fuzzer"
+    cmd="$ENVS $TASK_SET_CMD $FUZZER ${ARGS}"
+    info "${cmd}"
+    eval ${cmd}
+    ;;
+translate)
+    check_output
+    set_arg --header ${TEST_HEADER:-}
+    cmd="$OUTPUT_DIR/bin/hopper-translate ${ARGS}"
+    info "${cmd}"
+    eval ${cmd}
+    ;;
+sanitize)
+    check_output
+    cmd="$OUTPUT_DIR/bin/hopper-sanitizer ${ARGS}"
+    info "${cmd}"
+    eval ${cmd}
+    ;;
+cov)
+    check_output
+    if [ -z ${SEED_DIR:-} ]; then
+        error "you should set SEED_DIR that stores the seed inputs!!"
+        exit 1
+    fi
+    info "worksapce: $OUTPUT_DIR, seed: $SEED_DIR"
+    PROFILE_DIR=$OUTPUT_DIR/profile
+    COV_DIR=$OUTPUT_DIR/cov
+    rm -rf $PROFILE_DIR
+    export RUST_LOG=error
+    export LD_LIBRARY_PATH=$OUTPUT_DIR
+    export HOPPER_TIMEOUT_LIMIT=5
+    for FILE in ${SEED_DIR}/id_*; do
+        printf "iterate file $FILE: "
+        FILE_BASE=$(basename "$FILE") 
+        {
+            LLVM_PROFILE_FILE="${PROFILE_DIR}/${FILE_BASE}.%m.profraw" $OUTPUT_DIR/bin/hopper-harness $FILE --execute > /dev/null 2>&1
+            info "success"
+        } || { warn 'program execute failed'; }
+        set -e
+    done
+    # find .so file in output directory.
+    BIN_FILE=$(find $OUTPUT_DIR -maxdepth 1 -type f -name \*.so)
+    BIN_FILE=$(IFS= ; echo "${BIN_FILE[*]}")
+    info "bin file: $BIN_FILE"
+    rm -rf $COV_DIR
+    mkdir -p $COV_DIR
+    DATA_FILE=$COV_DIR/all.profdata
+    find ${PROFILE_DIR} -type f > ${COV_DIR}/prof.list
+    llvm-profdata merge -sparse -f ${COV_DIR}/prof.list -o ${DATA_FILE}
+    COV_EXCLUDE='(fuzzing|fuzz|test|OT|cre2|oss|examples)/'
+    llvm-cov show  -ignore-filename-regex=$COV_EXCLUDE --format=html $BIN_FILE -instr-profile=${DATA_FILE} >${COV_DIR}/coverage.html
+    # llvm-cov report -show-functions -ignore-filename-regex=$COV_EXCLUDE -instr-profile=${DATA_FILE} $BIN_FILE $SRC_DIR | tee ${COV_DIR}/coverage_funcs.report
+    llvm-cov report $BIN_FILE -instr-profile=${DATA_FILE} -ignore-filename-regex=$COV_EXCLUDE | tee ${COV_DIR}/coverage.report
+    ;;
+clean)
+    check_output
+    [ ! -d "${OUTPUT_DIR}" ] && error "directory '${OUTPUT_DIR}' is not exist" && exit 1
+    cd $OUTPUT_DIR
+    rm -rf crashes
+    rm -rf minimized_crashes
+    rm -rf hangs
+    rm -rf queue
+    rm -rf misc
+    rm -rf release
+    rm -rf working
+    find . -maxdepth 1 -type f ! -executable ! -name "test*" ! -name "*.log" ! -name "func_list" ! -name "custom_rule" ! -name "hopper.config" -delete
+    info "clean files in '$OUTPUT_DIR' directory"
+    ;;
+help)
+    warn "$USAGE"
+    exit 0
+    ;;
+*)
+    warn "$USAGE"
+    exit 1
+    ;;
+esac

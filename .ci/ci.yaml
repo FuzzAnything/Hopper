@@ -1,0 +1,28 @@
+version: v2.0
+
+on:
+  push: ["*"]
+  mr: ["*"]
+
+stages:
+  - name: build and test stage
+    jobs:
+      job1:
+        name: build and test job
+        runs-on:
+          pool-name: docker
+          container:
+            image: mirrors.tencent.com/rust-ci/rust:latest
+        steps:
+        - checkout: self
+        - run: |
+              cargo build
+              cargo test
+          name: cargo build and test
+        - run: |
+              rustup component add clippy
+          name: install clippy
+        - run: | 
+              cargo clippy --all-targets -- -D warnings
+          name: run clippy
+

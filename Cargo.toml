@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = [
+	'hopper-core',
+	'hopper-derive-impl',
+	'hopper-derive',
+	'hopper-compiler',
+	'hopper-harness',
+]
+
+# [patch.crates-io]
+# bindgen = { path = "../rust-bindgen" }
