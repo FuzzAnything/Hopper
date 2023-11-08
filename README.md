@@ -253,7 +253,7 @@ SEED_DIR=./output/queue hopper cov output_cov
 ```
 
 ## Contributing guidelines
-We have listed some tasks in [Roaddmap](https://github.com/FuzzAnything/hopper/discussions/2).
+We have listed some tasks in [Roadmap](https://github.com/FuzzAnything/hopper/discussions/2).
 If you are interested, please feel free to discuss with us and contribute your code.
 
 ### Coding
