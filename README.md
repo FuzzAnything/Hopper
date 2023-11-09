@@ -4,7 +4,7 @@ Hopper is an tool for generating fuzzing test cases for libraries automatically 
 Some key features of Hopper include:
 - Interpretative API invoking without any fuzz driver. 
 - Type-aware mutation for arguments.
-- Automiac intra- and inter-API constraints leanring.
+- Automatic intra- and inter-API constraints leanring.
 - Binary instrumentation support.
 
 To learn more about Hopper, check out our [paper](https://arxiv.org/pdf/2309.03496) at CCS '23.

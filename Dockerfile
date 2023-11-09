@@ -12,6 +12,7 @@ ENV HOPPER_BIN=/hopper/hopper \
 RUN apt-get update \
     && apt-get -y upgrade \
     && apt-get -y install build-essential wget curl cmake git unzip xxd protobuf-compiler libprotobuf-dev \
+    && apt-get -y install llvm-dev libclang-dev clang \
     && apt-get clean
 
 # ENV RUSTUP_DIST_SERVER="https://mirrors.ustc.edu.cn/rust-static"
@@ -30,9 +31,9 @@ WORKDIR /hopper
 
 RUN ./build.sh
 
-RUN mkdir /llvm
-ENV PATH=/llvm/bin:$PATH
-ENV LD_LIBRARY_PATH=/llvm/lib:$LD_LIBRARY_PATH
+# RUN mkdir /llvm
+# ENV PATH=/llvm/bin:$PATH
+# ENV LD_LIBRARY_PATH=/llvm/lib:$LD_LIBRARY_PATH
 
 RUN mkdir /fuzz_lib
 RUN mkdir /fuzz
