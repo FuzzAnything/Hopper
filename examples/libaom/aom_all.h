@@ -1,0 +1,10 @@
+#include "aom/aom_decoder.h"
+//#include "aom/aom_encoder.h"
+//#include "aom/aomcx.h"
+#include "aom/aomdx.h"
+//#include "aom_ports/mem_ops.h"
+// #include "common/tools_common.h"
+// #include "common/video_writer.h"
+// #include "common/video_reader.h"
+// #include "config/aom_config.h"
+
