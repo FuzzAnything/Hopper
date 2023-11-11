@@ -1,0 +1,4 @@
+func_include cre2_*
+func_exclude cre2_delete,cre2_set_delete,cre2_named_groups_iter_delete
+
+type cre2_string_t[length] = $len(data)

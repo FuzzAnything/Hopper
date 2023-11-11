@@ -1,0 +1,3 @@
+target_include magic_*
+# You need to set it the correct path
+func magic_load[$1] = "/data/workspace/fuzzing_bench/libmagic/build/hopper_build/magic/magic.mgc"

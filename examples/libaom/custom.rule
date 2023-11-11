@@ -1,0 +1,4 @@
+func_include aom_*
+// func_include aom_codec_decode,aom_codec_dec_init_ver,aom_codec_av1_dx
+// func_key aom_codec_decode,aom_codec_get_frame
+func_exclude aom_img_metadata_free,aom_img_free,aom_codec_control,aom_img_alloc,aom_img_alloc_with_border

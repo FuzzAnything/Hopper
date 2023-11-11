@@ -36,7 +36,7 @@ if [[ -e "hopper.config" ]]; then
     while IFS='=' read -r key value; do
     if [[ $key && $value ]]; then
         declare -x "$key=$value"
-        # echo "config file set $key = $value"
+        echo "config file set: $key = $value"
     fi
     done < "hopper.config"
 fi
@@ -156,7 +156,7 @@ cov)
         set -e
     done
     # find .so file in output directory.
-    BIN_FILE=$(find $OUTPUT_DIR -maxdepth 1 -type f -name \*.so)
+    BIN_FILE=$(find $OUTPUT_DIR -maxdepth 1 -type f -name \*_fuzz.so)
     BIN_FILE=$(IFS= ; echo "${BIN_FILE[*]}")
     info "bin file: $BIN_FILE"
     rm -rf $COV_DIR

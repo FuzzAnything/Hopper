@@ -1,0 +1,5 @@
+func_include ares_*
+
+// func_exclude ares_expand_name,ares_getaddrinfo,ares_gethostbyaddr
+// func_exclude ares_fds,ares_dup
+// func_exclude ares_library_init_mem

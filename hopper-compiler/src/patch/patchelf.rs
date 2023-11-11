@@ -3,7 +3,7 @@
 
 use std::{
     env,
-    path::{PathBuf},
+    path::PathBuf,
     process::Command,
 };
 

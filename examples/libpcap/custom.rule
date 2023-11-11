@@ -1,0 +1,10 @@
+func_include pcap_*
+# func_key pcap_compile
+# PCAP_DEPRECATED
+func_exclude pcap_freealldevs,pcap_geterr
+func_exclude pcap_dump_file,pcap_file,pcap_dump
+func_exclude pcap_open_live,pcap_activate
+
+# type pcap_pkthdr = $opaque
+# func pcap_open[$0] = $read_file
+# func pcap_dump_open_append[$1] = $write_file

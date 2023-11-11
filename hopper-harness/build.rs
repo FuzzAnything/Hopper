@@ -150,6 +150,8 @@ fn link_libraries() {
         }
         println!("cargo:rustc-link-search=native={dir}");
     }
+    #[cfg(target_os = "linux")]
+    println!("cargo:rustc-link-arg=-Wl,--allow-shlib-undefined");
 }
 
 fn main() {

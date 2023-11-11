@@ -1,0 +1,4 @@
+func_include vpx_*
+// func_include vpx_codec_dec_init_ver,vpx_codec_vp9_dx,vpx_codec_decode
+// func_key vpx_codec_decode,vpx_codec_get_frame
+func_exclude vpx_img_free,vpx_codec_control_

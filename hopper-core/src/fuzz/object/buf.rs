@@ -86,7 +86,13 @@ impl<T: ObjFuzzable + ObjGenerate> BufMutate for Vec<T> {
                                     return Ok(true);
                                 }
                                 let chunk = &seed.buf[r.lower..r.upper];
-                                super::seq::vec_insert_chunk(buf1, state, *split_at, chunk, r.is_insert)?;
+                                super::seq::vec_insert_chunk(
+                                    buf1,
+                                    state,
+                                    *split_at,
+                                    chunk,
+                                    r.is_insert,
+                                )?;
                             } else {
                                 if *split_at >= seed.buf.len() {
                                     return Ok(true);
@@ -188,9 +194,7 @@ impl<T: ObjFuzzable + ObjGenerate> BufMutate for Vec<T> {
         let ele_type_name = std::any::type_name::<T>();
         let ident = state.key.as_str()?;
         let key = format!("{ident}_{ele_type_name}");
-        let buf1 = unsafe {
-            std::slice::from_raw_parts(self.as_ptr() as *const u8, self.len())
-        };
+        let buf1 = unsafe { std::slice::from_raw_parts(self.as_ptr() as *const u8, self.len()) };
         // Get current buffer's hash
         let hash = crate::utils::hash_buf(buf1);
         // Pick a random entry. Don't splice with yourself.
@@ -221,8 +225,8 @@ impl<T: ObjFuzzable + ObjGenerate> BufMutate for Vec<T> {
                             range: Some(crate::SpliceRange {
                                 lower,
                                 upper,
-                                is_insert
-                            })
+                                is_insert,
+                            }),
                         });
                     }
 
@@ -312,8 +316,6 @@ impl<T: ObjFuzzable + ObjGenerate> BufMutate for Vec<T> {
         Ok(MutateOperation::Nop)
     }
 }
-
-
 
 /// Find a suitable splicing location, somewhere between the first and
 /// the last differing byte.
@@ -454,7 +456,8 @@ pub fn get_buf_dict_tokens(ident: &str) -> Vec<&'static [u8]> {
         let default_dict = crate::config::output_file_path("misc/dict");
         let path = if let Ok(path) = std::env::var("HOPPER_DICT") {
             crate::log!(info, "load dict path: {}", path);
-            std::fs::copy(&path, default_dict).unwrap();
+            std::fs::copy(&path, default_dict)
+                .expect("fail to open dict file! please check the file is exist or not");
             PathBuf::from(path)
         } else {
             default_dict
@@ -608,7 +611,7 @@ fn test_parse_dict() {
     let ret = BUF_DICTS.get_or_init(|| parse_dictionary(buf.as_bytes()));
     if ret.is_empty() {
         return;
-    } 
+    }
     let list = get_buf_dict_tokens("abc");
     assert_eq!(list.len(), 2);
     let list = get_buf_dict_tokens("test");
