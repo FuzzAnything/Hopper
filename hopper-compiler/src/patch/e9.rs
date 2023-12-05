@@ -93,134 +93,9 @@ pub fn e9_instrument(library: &Path, output_lib: &Path, lib_info: &BinaryInfo) -
         "-P",
         &format!("before exit_indirect(offset, rax)@{hopper_rt}"),
     ];
-    let free_pat = [
-        "-M",
-        "call and target == &free",
-        "-P",
-        &format!("before entry_free(offset, &rdi)@{hopper_rt}"),
-    ];
-    let malloc_pat = [
-        "-M",
-        "call and target == &malloc",
-        "-P",
-        &format!("replace hook_malloc(offset, rdi, &rax)@{hopper_rt}"),
-    ];
-    let calloc_pat = [
-        "-M",
-        "call and target == &calloc",
-        "-P",
-        &format!("replace hook_calloc(offset, rdi, rsi, &rax)@{hopper_rt}"),
-    ];
-    let realloc_pat = [
-        "-M",
-        "call and target == &realloc",
-        "-P",
-        &format!("replace hook_realloc(offset, rdi, rsi, &rax)@{hopper_rt}"),
-    ];
-    let fopen_pat = [
-        "-M",
-        "call and target == &fopen",
-        "-P",
-        &format!("before entry_fopen(offset, rdi, rsi)@{hopper_rt}"),
-    ];
-    let open_pat = [
-        "-M",
-        "call and target == &open",
-        "-P",
-        &format!("before entry_open(offset, rdi, rsi)@{hopper_rt}"),
-    ];
-    let open64_pat = [
-        "-M",
-        "call and target == &open64",
-        "-P",
-        &format!("before entry_open(offset, rdi, rsi)@{hopper_rt}"),
-    ];
-    let close_pat = [
-        "-M",
-        "call and target == &close",
-        "-P",
-        &format!("before entry_close(offset, &rdi)@{hopper_rt}"),
-    ];
-    let creat_pat = [
-        "-M",
-        "call and target == &creat",
-        "-P",
-        &format!("before entry_creat(offset, rdi)@{hopper_rt}"),
-    ];
-    let fdopen_pat = [
-        "-M",
-        "call and target == &fdopen",
-        "-P",
-        &format!("before entry_fdopen(offset, &rdi, rsi)@{hopper_rt}"),
-    ];
-    let lseek_pat = [
-        "-M",
-        "call and target == &lseek",
-        "-P",
-        &format!("before entry_lseek(offset, &rdi)@{hopper_rt}"),
-    ];
-    let lseek64_pat = [
-        "-M",
-        "call and target == &lseek64",
-        "-P",
-        &format!("before entry_lseek(offset, &rdi)@{hopper_rt}"),
-    ];
-    let read_pat = [
-        "-M",
-        "call and target == &\"read\"",
-        "-P",
-        &format!("before entry_read(offset, &rdi)@{hopper_rt}"),
-    ];
-    let write_pat = [
-        "-M",
-        "call and target == &\"write\"",
-        "-P",
-        &format!("before entry_write(offset, &rdi)@{hopper_rt}"),
-    ];
-    // log::info!("lib funcs: {:?}", funcs);
     args.extend_from_slice(&indiret_call_pat);
-    if lib_info.contain_func("free") {
-        args.extend_from_slice(&free_pat);
-    }
-    if lib_info.contain_func("malloc") {
-        args.extend_from_slice(&malloc_pat);
-    }
-    if lib_info.contain_func("calloc") {
-        args.extend_from_slice(&calloc_pat);
-    }
-    if lib_info.contain_func("realloc") {
-        args.extend_from_slice(&realloc_pat);
-    }
-    if lib_info.contain_func("fopen") {
-        args.extend_from_slice(&fopen_pat);
-    }
-    if lib_info.contain_func("open") {
-        args.extend_from_slice(&open_pat);
-    }
-    if lib_info.contain_func("close") {
-        args.extend_from_slice(&close_pat);
-    }
-    if lib_info.contain_func("open64") {
-        args.extend_from_slice(&open64_pat);
-    }
-    if lib_info.contain_func("creat") {
-        args.extend_from_slice(&creat_pat);
-    }
-    if lib_info.contain_func("fdopen") {
-        args.extend_from_slice(&fdopen_pat);
-    }
-    if lib_info.contain_func("lseek") {
-        args.extend_from_slice(&lseek_pat);
-    }
-    if lib_info.contain_func("lseek64") {
-        args.extend_from_slice(&lseek64_pat);
-    }
-    if lib_info.contain_func("read") {
-        args.extend_from_slice(&read_pat);
-    }
-    if lib_info.contain_func("write") {
-        args.extend_from_slice(&write_pat);
-    }
+    // use hook.rs instead
+    // e9_fn_hook(hopper_rt.as_ref(), lib_info, &mut args);
 
     let e9_exclude: Vec<String> = lib_info
         .list_exclude_patch_range()
@@ -264,4 +139,135 @@ fn e9_dir() -> Result<PathBuf> {
     }
     let exe_dir = env::current_dir()?;
     Ok(exe_dir)
+}
+
+fn e9_fn_hook(hopper_rt: &str, lib_info: &BinaryInfo, args: &mut Vec<&str>) {
+    let free_pat = [
+        "-M",
+        "call and target == &free",
+        "-P",
+        format!("before entry_free(offset, &rdi)@{hopper_rt}").leak()
+    ];
+    let malloc_pat = [
+        "-M",
+        "call and target == &malloc",
+        "-P",
+        format!("replace hook_malloc(offset, rdi, &rax)@{hopper_rt}").leak(),
+    ];
+    let calloc_pat = [
+        "-M",
+        "call and target == &calloc",
+        "-P",
+        format!("replace hook_calloc(offset, rdi, rsi, &rax)@{hopper_rt}").leak(),
+    ];
+    let realloc_pat = [
+        "-M",
+        "call and target == &realloc",
+        "-P",
+        format!("replace hook_realloc(offset, rdi, rsi, &rax)@{hopper_rt}").leak(),
+    ];
+    let fopen_pat = [
+        "-M",
+        "call and target == &fopen",
+        "-P",
+        format!("before entry_fopen(offset, rdi, rsi)@{hopper_rt}").leak(),
+    ];
+    let open_pat = [
+        "-M",
+        "call and target == &open",
+        "-P",
+        format!("before entry_open(offset, rdi, rsi)@{hopper_rt}").leak(),
+    ];
+    let open64_pat = [
+        "-M",
+        "call and target == &open64",
+        "-P",
+        format!("before entry_open(offset, rdi, rsi)@{hopper_rt}").leak(),
+    ];
+    let close_pat = [
+        "-M",
+        "call and target == &close",
+        "-P",
+        format!("before entry_close(offset, &rdi)@{hopper_rt}").leak(),
+    ];
+    let creat_pat = [
+        "-M",
+        "call and target == &creat",
+        "-P",
+        format!("before entry_creat(offset, rdi)@{hopper_rt}").leak(),
+    ];
+    let fdopen_pat = [
+        "-M",
+        "call and target == &fdopen",
+        "-P",
+        format!("before entry_fdopen(offset, &rdi, rsi)@{hopper_rt}").leak(),
+    ];
+    let lseek_pat = [
+        "-M",
+        "call and target == &lseek",
+        "-P",
+        format!("before entry_lseek(offset, &rdi)@{hopper_rt}").leak(),
+    ];
+    let lseek64_pat = [
+        "-M",
+        "call and target == &lseek64",
+        "-P",
+        format!("before entry_lseek(offset, &rdi)@{hopper_rt}").leak(),
+    ];
+    let read_pat = [
+        "-M",
+        "call and target == &\"read\"",
+        "-P",
+        format!("before entry_read(offset, &rdi)@{hopper_rt}").leak(),
+    ];
+    let write_pat = [
+        "-M",
+        "call and target == &\"write\"",
+        "-P",
+        format!("before entry_write(offset, &rdi)@{hopper_rt}").leak(),
+    ];
+    // log::info!("lib funcs: {:?}", funcs);
+    if lib_info.contain_func("free") {
+        args.extend_from_slice(&free_pat);
+    }
+    if lib_info.contain_func("malloc") {
+        args.extend_from_slice(&malloc_pat);
+    }
+    if lib_info.contain_func("calloc") {
+        args.extend_from_slice(&calloc_pat);
+    }
+    if lib_info.contain_func("realloc") {
+        args.extend_from_slice(&realloc_pat);
+    }
+    // TODO: strdup
+    if lib_info.contain_func("fopen") {
+        args.extend_from_slice(&fopen_pat);
+    }
+    if lib_info.contain_func("open") {
+        args.extend_from_slice(&open_pat);
+    }
+    if lib_info.contain_func("close") {
+        args.extend_from_slice(&close_pat);
+    }
+    if lib_info.contain_func("open64") {
+        args.extend_from_slice(&open64_pat);
+    }
+    if lib_info.contain_func("creat") {
+        args.extend_from_slice(&creat_pat);
+    }
+    if lib_info.contain_func("fdopen") {
+        args.extend_from_slice(&fdopen_pat);
+    }
+    if lib_info.contain_func("lseek") {
+        args.extend_from_slice(&lseek_pat);
+    }
+    if lib_info.contain_func("lseek64") {
+        args.extend_from_slice(&lseek64_pat);
+    }
+    if lib_info.contain_func("read") {
+        args.extend_from_slice(&read_pat);
+    }
+    if lib_info.contain_func("write") {
+        args.extend_from_slice(&write_pat);
+    }
 }

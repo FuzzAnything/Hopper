@@ -64,7 +64,8 @@ impl<T: ObjFuzzable + ObjGenerate> ObjMutate for [T] {
             return Ok(MutateOperator::nop());
         }
         // only select one in slice
-        let idx = rng::gen_range(0..self.len());
+        let idx = weight::choose_weighted_by_state(state)
+            .unwrap_or_else(|| rng::gen_range(0..self.len()));
         // UNUSED: if it is not primitive, we likely to mutate its first element.
         // we do not use this since we have minimized the arguments.
         // if !T::is_primitive() && rng::rarely() {
@@ -271,7 +272,7 @@ impl<T: ObjFuzzable + ObjGenerate> ObjMutate for Vec<T> {
                     } else {
                         vec_add_elements(self, state, start, diff)?;
                     }
-                    eyre::ensure!(self.len() >= len -1, "resize to specific length");
+                    eyre::ensure!(self.len() >= len - 1, "resize to specific length");
                 } else {
                     flag::set_refine_suc(false);
                 }
@@ -517,10 +518,12 @@ fn vec_add_elements<T: ObjFuzzable + ObjGenerate>(
         offset = list.len();
     }
     crate::log!(trace, "vec add {} elements at {}", len, offset);
-    eyre::ensure!(
-        len < 10000,
-        "the number of adding elements should not be too huge"
-    );
+    /*
+    if len > 10000 {
+        crate::log!(trace, "skip adding, length is {len}");
+        return Ok(());
+    }
+    */
     // copy all elements from exist ones
     let mut copy_all = false;
     if rng::rarely() {
@@ -724,7 +727,6 @@ fn test_vec_pad() -> eyre::Result<()> {
 
     Ok(())
 }
-
 
 #[test]
 fn test_resize() -> eyre::Result<()> {

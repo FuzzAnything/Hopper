@@ -215,12 +215,14 @@ extern void *e9_plugin_init(const Context *cxt) {
   // mov %ds:offset_ptr, %eax
   code << 0x8b << ',' << 0x04 << ',' << 0x25 << ','
        << "{\"int32\":" << cmp_offset << "},";
-  // and %eax, CMP_AREA_SIZE - 1
-  code << 0x25 << ',' << "{\"int32\":" << CMP_AREA_SIZE - 1 << "},";
+  // and %eax, CMP_LIST_SIZE - 1  // make sure its value is b1111...
+  code << 0x25 << ',' << "{\"int32\":" << CMP_LIST_SIZE - 1 << "},";
   // mov %eax %r10d
   code << 0x41 << ',' << 0x89 << ',' << 0xc2 << ',';
-  // add %eax, $0x20
-  code << 0x83 << ',' << 0xc0 << ',' << 0x20 << ',';
+  // shl %r10d 5 (mul 32)
+  code << 0x41 << ',' << 0xc1 << ',' << 0xe2 << ',' << 0x5 << ',';
+  // add %eax, $0x01
+  code << 0x83 << ',' << 0xc0 << ',' << 0x01 << ',';
   // mov %eax, %ds:offset_ptr
   code << 0x89 << ',' << 0x04 << ',' << 0x25 << ','
        << "{\"int32\":" << cmp_offset << "},";
@@ -372,6 +374,7 @@ void find_addr_in_sym(const ELF *elf, const char *name, CMP_TYPE type) {
 extern void e9_plugin_event(const Context *cxt, Event event) {
   switch (event) {
     case EVENT_DISASSEMBLY_COMPLETE: {
+#ifdef ENABLE_TRACE_STRCMP 
       const ELF *elf = cxt->elf;
       const PLTInfo info = getELFPLTInfo(elf);
       for (auto iter = info.begin(); iter != info.end(); ++iter) {
@@ -380,6 +383,7 @@ extern void e9_plugin_event(const Context *cxt, Event event) {
       FIND_ADDR(elf, "strcmp", STRCMP);
       FIND_ADDR(elf, "strncmp", STRNCMP);
       FIND_ADDR(elf, "memcmp", MEMCMP);
+#endif
       break;
     }
     // case EVENT_MATCHING_COMPLETE: {
@@ -703,6 +707,7 @@ extern intptr_t e9_plugin_match(const Context *cxt) {
       return INSTCMP;
     }
     case MNEMONIC_CALL: {
+#ifdef ENABLE_TRACE_STRCMP
       if (I->op[0].type == OPTYPE_IMM) {
         intptr_t target = call_target(I);
         auto f = CmpPlt.find(target);
@@ -716,6 +721,7 @@ extern intptr_t e9_plugin_match(const Context *cxt) {
           return f->second;
         }
       }
+#endif
       return 0;
     }
     // SIMD, Packed Double-Precision Floating-Point Values
@@ -990,6 +996,7 @@ extern void e9_plugin_patch(const Context *cxt) {
       }
     }
   } else if (cxt->I->mnemonic == MNEMONIC_CALL) {
+#ifdef ENABLE_TRACE_STRCMP
     intptr_t target = call_target(cxt->I);
     auto f = CmpPlt.find(target);
     CMP_TYPE kind = f->second;
@@ -1004,5 +1011,6 @@ extern void e9_plugin_patch(const Context *cxt) {
     }
     fprintf(cxt->out, "\"$mov_operand1\":null,");
     fprintf(cxt->out, "\"$mov_operand2\":null,");
+#endif
   }
 }

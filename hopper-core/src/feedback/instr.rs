@@ -45,26 +45,33 @@ impl SHMable for InstrList {
     fn buf_size() -> usize {
         config::CMP_LIST_AREA + config::MEM_LIST_AREA + 64
     }
+    #[cfg(feature = "llvm_mode")]
+    fn post_hander(ptr: *const u8) {
+        let ptr = ptr as *const InstrList;
+        unsafe { 
+            __hopper_stmt_index_ptr = std::ptr::addr_of!((*ptr).stmt_index);
+        };
+    }
 }
+
+#[no_mangle]
+pub static mut __hopper_stmt_index_ptr: *const u32 = std::ptr::null();
 
 impl InstrList {
     /// Get last stmt index
     #[inline]
     pub fn last_stmt_index(&self) -> usize {
-        self.stmt_index as usize
-    }
-
-    /// Current pointer offset that cmpop will be written
-    /// which indicate the size of cmps we saw
-    #[inline]
-    fn cmp_offset(&self) -> usize {
-        self.cmp_offset as usize
+        if cfg!(feature = "e9_mode") {
+            self.stmt_index as usize
+        } else {
+            globl::current_stmt_index() as usize
+        }
     }
 
     /// Length of CmpOp
     #[inline]
     pub fn cmp_len(&self) -> usize {
-        self.cmp_offset() / CMP_ENTRY_SIZE
+        self.cmp_offset as usize
     }
 
     /// Iterator for cmps
@@ -78,18 +85,10 @@ impl InstrList {
         }
     }
 
-    /// Current pointer offset that memop will be written
-    /// which indicate the size of mem we saw
-    #[inline]
-    fn mem_offset(&self) -> usize {
-        self.mem_offset as usize
-    }
-
     /// Length of CmpOp
     #[inline]
     pub fn mem_len(&self) -> usize {
-        // length is offset
-        self.mem_offset() // MEM_ENTRY_SIZE
+        self.mem_offset as usize
     }
 
     /// Iterator for frees
@@ -101,6 +100,37 @@ impl InstrList {
             offset: 0,
             counter: None,
         }
+    }
+
+    /// Add a cmp into list
+    pub fn add_cmp(&mut self, id: u32, ty: u16, operand1: u64, operand2: u64, size: u32) {
+        self.add_cmp_with_prefix(id, ty, operand1, operand2, size, 0); 
+    }
+
+    pub fn add_cmp_with_prefix(&mut self, id: u32, ty: u16, operand1: u64, operand2: u64, size: u32, prefix: u32) {
+        let mut offset = self.cmp_offset as usize;
+        if offset >= CMP_LIST_LEN {
+            offset = 0;
+        }
+        let stmt_index = self.last_stmt_index() as u16;
+        self.cmps[offset] = CmpOperation {operand1, operand2, id, size, ty, stmt_index, state: prefix};
+        self.cmp_offset =  offset as u32 + 1; 
+    }
+
+    /// Add a mem into list with suffix
+    pub fn add_mem_with_suffix(&mut self, id: u32, ty: u16, addr: u64, size: u32, suffix: [u8; 4]) {
+        let mut offset = self.mem_offset as usize;
+        if offset >= MEM_LIST_LEN {
+            offset = 0;
+        }
+        let stmt_index = self.last_stmt_index() as u16;
+        self.mems[offset] = MemOperation {addr, id, ty, stmt_index, size, suffix};
+        self.mem_offset = offset as u32 + 1;
+    }
+
+    /// Add a mem into list
+    pub fn add_mem(&mut self, id: u32, ty: u16, addr: u64, size: u32) {
+        self.add_mem_with_suffix(id, ty, addr, size, [0; 4]);
     }
 
     pub fn inner_clear(&mut self) {
@@ -124,7 +154,6 @@ impl InstrList {
         self.cmp_offset = 0;
         self.mem_offset = 0;
         self.stmt_index = 0;
-        // self.padding1 = 0;
         self.free_addr = 0;
         self.malloc_addr = 0;
         self.calloc_addr = 0;

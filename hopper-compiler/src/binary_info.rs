@@ -11,6 +11,8 @@ pub struct BinaryInfo {
     pub str_list: Vec<String>,
     // exported API in the symbol table
     pub func_list: Vec<FuncInfo>,
+    // needed libraries
+    pub needed: Vec<String>
 }
 
 #[derive(Debug)]
@@ -29,6 +31,7 @@ impl BinaryInfo {
         let lib_type;
         let mut str_list = vec![];
         let mut func_list = vec![];
+        let mut needed = vec![];
         match result {
             Object::Elf(elf) => {
                 lib_type = "elf";
@@ -67,6 +70,12 @@ impl BinaryInfo {
                         })
                     }
                 }
+                if let Some(dy) = elf.dynamic.as_ref() {
+                    for name in dy.get_libraries(&elf.dynstrtab) {
+                        needed.push(name.to_string());
+                    }
+                }
+                
             }
             Object::PE(pe) => {
                 lib_type = "pe";
@@ -112,6 +121,7 @@ impl BinaryInfo {
             lib_type,
             str_list,
             func_list,
+            needed,
         })
     }
 

@@ -63,6 +63,7 @@ impl FuzzProgram {
     /// Update statements' weight from bottom to top
     /// If the field or arg has constraints and fixed, we set its weight to 0
     pub fn update_weight(&self) {
+        crate::log_trace!("update wreight");
         for i in 0..self.stmts.len() {
             let stmt = &self.stmts[i].stmt;
             match stmt {
@@ -79,6 +80,8 @@ impl FuzzProgram {
                 FuzzStmt::Load(load) => {
                     if load.is_const {
                         let _ = load.state.replace_weight(0);
+                    } else {
+                        load.state.update_weight_from_children();
                     }
                     crate::iterate_type_constraint_with(|ty, tc| {
                         if tc

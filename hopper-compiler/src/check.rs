@@ -52,7 +52,7 @@ pub fn output_lib_name(file: &str) -> String {
 pub fn check_llvm_runtime(libraries: &[String]) -> bool {
     libraries
         .iter()
-        .any(|l| check_file_contains(l, "HOOPER_LLVM_MARK"))
+        .any(|l| check_file_contains(l, "__hopper_area_ptr"))
 }
 
 pub fn check_file_contains(target: &str, s: &str) -> bool {

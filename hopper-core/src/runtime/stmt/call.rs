@@ -4,7 +4,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use super::*;
-use crate::{feedback, global_gadgets, runtime::*, utils};
+use crate::{feedback::globl, global_gadgets, runtime::*, utils};
 
 // det_index: better to be independent of program?
 #[derive(Debug)]
@@ -68,26 +68,24 @@ impl StmtView for CallStmt {
             .collect();
         crate::log!(trace, "arguments: {:?}", arguments);
         // enable track coverage for this function call or not
-        #[cfg(all(feature = "e9_mode", not(test)))]
         if self.track_cov {
-            feedback::enable_coverage_feedback();
+            globl::enable_coverage_feedback();
             if crate::config::get_api_sensitive_cov() {
                 let context = hash_context(self.fg.f_name);
                 // crate::log!(trace, "context: {context}");
-                feedback::set_coverage_context(context);
+                globl::set_coverage_context(context);
             } else {
-                feedback::set_coverage_context(0);
+                globl::set_coverage_context(0);
             }
         } else {
-            feedback::disable_coverage_feedback();
+            globl::disable_coverage_feedback();
         }
         let ret = self.fg.f.eval(&arguments);
         let eval_secs = p_start_at.elapsed().as_micros() - check_secs;
         crate::log!(trace, "eval time: {} micro seconds", eval_secs);
-        feedback::disable_coverage_feedback();
+        globl::disable_coverage_feedback();
         crate::log!(trace, "return ({}): {:?}", ret.type_name(), ret);
         self.ret = Some(ret);
-        #[cfg(all(feature = "e9_mode", not(test)))]
         resource_states.update_pointers_after_call()?;
         let update_secs = p_start_at.elapsed().as_micros() - eval_secs;
         crate::log!(trace, "update time: {} micro seconds", update_secs);
@@ -425,7 +423,6 @@ fn deserialize_args(de: &mut Deserializer) -> eyre::Result<Vec<StmtIndex>> {
     Ok(args)
 }
 
-#[cfg(all(feature = "e9_mode", not(test)))]
 fn hash_context(f_name: &str) -> u32 {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};

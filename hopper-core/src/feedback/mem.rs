@@ -36,8 +36,8 @@ pub struct MemOperation {
     pub stmt_index: u16,
     /// Size
     pub size: u32,
-    // slice of the value in the address. (suffix)
-    pub slice: [u8; 4],
+    // suffix of the value in the address.
+    pub suffix: [u8; 4],
 }
 
 impl ShmIteratorItem for MemOperation {
@@ -84,7 +84,7 @@ impl std::fmt::Display for MemOperation {
             { self.ty },
             { self.stmt_index },
             { self.size },
-            { self.slice }
+            { self.suffix }
         )
     }
 }
@@ -165,7 +165,7 @@ impl InstrList {
             let mut loc = find_location_at_ptr(stmts, addr, resource_states);
             // try to find the filename in string
             if loc.is_none() && is_file {
-                loc = find_string_in_stmts(addr, op.slice.as_slice(), stmts);
+                loc = find_string_in_stmts(addr, op.suffix.as_slice(), stmts);
             }
             if let Some(mut loc) = loc {
                 // remove index from `find_string`

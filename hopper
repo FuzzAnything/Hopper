@@ -35,6 +35,9 @@ source ${ROOT_DIR}/tools/core_affinity.sh
 if [[ -e "hopper.config" ]]; then
     while IFS='=' read -r key value; do
     if [[ $key && $value ]]; then
+        if [[ $key = \#* ]] ; then
+            continue
+        fi
         declare -x "$key=$value"
         echo "config file set: $key = $value"
     fi
@@ -67,6 +70,14 @@ check_output() {
     if [ -z ${OUTPUT_DIR:-} ]; then
         error "do not set output directory!!"
         warn "$USAGE"
+        exit 1
+    fi
+    if [ "$OUTPUT_DIR" == "" ];then
+        error "output directory can't be empty!"
+        exit 1
+    fi
+    if [ "$OUTPUT_DIR" == "/" ];then
+        error "output directory can't be root directory '/'!"
         exit 1
     fi
 }
@@ -182,6 +193,10 @@ clean)
     rm -rf working
     find . -maxdepth 1 -type f ! -executable ! -name "test*" ! -name "*.log" ! -name "func_list" ! -name "custom_rule" ! -name "hopper.config" -delete
     info "clean files in '$OUTPUT_DIR' directory"
+    ;;
+clang)
+    echo "CC=${ROOT_DIR}/install/hopper-clang"
+    echo "CXX=${ROOT_DIR}/install/hopper-clang++"
     ;;
 help)
     warn "$USAGE"

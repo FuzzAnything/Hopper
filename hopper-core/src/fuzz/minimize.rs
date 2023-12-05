@@ -1,6 +1,6 @@
 use eyre::{Context, ContextCompat};
 
-use crate::{fuzzer::Fuzzer, runtime::*, utils, StatusType};
+use crate::{fuzzer::Fuzzer, runtime::*, utils, StatusType, MutateOperation};
 
 impl Fuzzer {
     /// Minimize the program before save
@@ -13,7 +13,7 @@ impl Fuzzer {
     ) -> eyre::Result<bool> {
         // ignore det mutation
         if let Some(op) = program.ops.first() {
-            if op.det {
+            if op.det && !matches!(op.op, MutateOperation::BufSeed { .. }) {
                 return Ok(false);
             }
         }
