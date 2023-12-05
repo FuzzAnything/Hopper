@@ -87,6 +87,7 @@ pub fn setup_shm<T: super::SHMable>() -> eyre::Result<SharedMemory<T>> {
         id,
         shm
     );
+    T::post_hander(shm.ptr as *const u8);
     Ok(shm)
 }
 

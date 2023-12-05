@@ -56,6 +56,7 @@ then
     echo -e "${GREEN}$0${OFF}: building e9patch..."
     cd e9patch-$VERSION
     echo -e "${GREEN}$0${OFF}: patch e9patch..."
+    # only used for windows instrumentation
     patch -p1 <$SOURCE_DIR/e9patch.diff
     ./build.sh
     cp e9patch ../../

@@ -35,7 +35,7 @@ pub const SHM_INSTR_BASE: u64 = SHM_PATH_BASE + 0x100000;
 pub const RAW_DATA_PTR: u64 = 0x46f00000;
 
 // Size of area(a list) for collected cmp & memory related instructions
-// or functions. If we modify these, please check asm.S and asm-win.S.
+// or functions. If we modify these, please check src/feedback/
 pub const CMP_LIST_AREA: usize = 0x80000;
 pub const MEM_LIST_AREA: usize = 0x30000;
 // Fixed pointer of arena memory for allocated objectes wrapped with canaries
@@ -376,7 +376,7 @@ const fn map_size_pow2_var() -> usize {
 
 /// use canary
 const fn use_canary() -> bool {
-    cfg!(feature = "e9_mode")
+    cfg!(any(feature = "e9_mode", feature = "llvm_mode"))
 }
 
 /// Get file path in output dir

@@ -200,6 +200,7 @@ impl InstrList {
         &mut self,
         program: &FuzzProgram,
     ) -> eyre::Result<()> {
+        crate::log_trace!("start infer cmp..");
         let can_associate = Self::can_associate_loc(program);
         // Now we disablel diff cmp if the mutation is complex.
         if !can_associate {
@@ -227,6 +228,7 @@ impl InstrList {
                                 state.get_location_fields().serialize()?,
                                 &cmp
                             );
+                            // TODO: if it is a byte and not the start?
                             // crate::log!(info, "try add {cmp:?} for {:?}", op.key);
                             state.mutate.borrow_mut().affect_cmp(cmp);
                         }

@@ -69,6 +69,9 @@ impl ResourceStates {
     /// Update pointers after call functions
     /// - Record which pointers are freed
     pub fn update_pointers_after_call(&mut self) -> eyre::Result<()> {
+        if cfg!(test) {
+            return Ok(());
+        }
         let instrs = get_instr_list();
         let stmt_index = instrs.last_stmt_index() as u16;
         for op in instrs.mem_iter() {

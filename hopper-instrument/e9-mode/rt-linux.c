@@ -158,7 +158,7 @@ void entry_fdopen(uint32_t id, int32_t *arg1, int64_t arg2) {
   // log("fdopen %d, %s", fd, arg2);
   // avoid blocking in stdin/stdout/stderr
   if (fd == 0 ||
-      ((fd == 1 || fd == 2) && read_mode) ||
+      ((fd == 1 || fd == 2) && read_mode == 1) ||
       IS_RESERVED_FD(fd)) {
         *arg1 = -1;
       }

@@ -57,7 +57,7 @@ impl ForkSrv {
         executor.set_timeout(self.timeout_limit);
         let mut exec_usage = TimeUsage::default();
         let start_at = std::time::Instant::now();
-        disable_coverage_feedback();
+        globl::disable_coverage_feedback();
         let timeout_limit = self.timeout_limit;
         let loop_num = config::get_fast_execute_loop();
         crate::log!(info, "start fork loop !");
@@ -266,7 +266,7 @@ impl ForkSrv {
             let n = self
                 .reader
                 .read_line(&mut buf)
-                .context("fail to read line")?;
+                .context("fail to read line in buf")?;
             if n == 6 && buf.ends_with("<END>\n") {
                 break;
             }

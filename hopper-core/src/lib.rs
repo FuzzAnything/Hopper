@@ -29,6 +29,7 @@ fn init_harness() -> eyre::Result<()> {
     execute::install_signal_handler();
     reserve_fds();
     read_existing_opaue()?;
+    add_hooks()?;
     Ok(())
 }
 
@@ -66,7 +67,7 @@ pub fn run_program(file: &str, cmd: ForkCmd) -> eyre::Result<()> {
     crate::log!(info, "program:\n{}", &buf);
     let mut program = read_program(&buf, config::USE_CANARY)?;
     feedback.clear();
-    feedback::disable_coverage_feedback();
+    globl::disable_coverage_feedback();
     // run
     let p_start_at = std::time::Instant::now();
     let f = || match cmd {
@@ -105,7 +106,7 @@ pub fn run_program(file: &str, cmd: ForkCmd) -> eyre::Result<()> {
         let timeout_setting =
             std::env::var(config::TIMEOUT_LIMIT_VAR).unwrap_or_else(|_| "1".to_string());
         let timeout_limit = std::time::Duration::from_secs(timeout_setting.parse()?);
-        crate::log!(info, "timeout setting: {:?}", timeout_limit);
+        // crate::log!(info, "timeout setting: {:?}", timeout_limit);
         executor.set_timeout(timeout_limit);
         let status = executor.execute(f);
         crate::log!(info, "status: {:?}", status);
@@ -137,7 +138,13 @@ pub fn run_program(file: &str, cmd: ForkCmd) -> eyre::Result<()> {
     }
     let show_cmp = std::env::args().any(|f| f == "--cmp");
     if show_cmp {
-        feedback.instrs.cmp_iter(None).for_each(|c| c.log_cmp());
+        feedback.instrs.cmp_iter(None).for_each(|c|  {
+            c.log_cmp()
+        });
+    }
+    let show_mem= std::env::args().any(|f| f == "--mem");
+    if show_mem {
+        feedback.instrs.mem_iter().for_each(|m| crate::log_info!("mem: {m:?}"));
     }
     crate::log!(info, "cmp_len: {}", feedback.instrs.cmp_len());
     crate::log!(info, "mem_len: {}", feedback.instrs.mem_len());

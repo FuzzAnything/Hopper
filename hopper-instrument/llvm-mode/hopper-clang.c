@@ -30,28 +30,25 @@
 
 #define HOPPER_MAIN
 
-#include "alloc_inl.h"
-
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
-static u8*  obj_path;               /* Path to runtime libraries         */
-static u8** cc_params;              /* Parameters passed to the real CC  */
-static u32  cc_par_cnt = 1;         /* Param count, including argv0      */
+#include "alloc_inl.h"
 
+static u8* obj_path;       /* Path to runtime libraries         */
+static u8** cc_params;     /* Parameters passed to the real CC  */
+static u32 cc_par_cnt = 1; /* Param count, including argv0      */
 
 /* Try to find the runtime libraries. If that fails, abort. */
 
 static void find_obj(u8* argv0) {
-
-  u8 *hopper_path = getenv("HOPPER_PATH");
+  u8* hopper_path = getenv("HOPPER_PATH");
   u8 *slash, *tmp;
 
   if (hopper_path) {
-
-    tmp = alloc_printf("%s/hopper-llvm-rt.o", hopper_path);
+    tmp = alloc_printf("%s/libHopperPass.so", hopper_path);
 
     if (!access(tmp, R_OK)) {
       obj_path = hopper_path;
@@ -60,20 +57,18 @@ static void find_obj(u8* argv0) {
     }
 
     ck_free(tmp);
-
   }
 
   slash = strrchr(argv0, '/');
 
   if (slash) {
-
-    u8 *dir;
+    u8* dir;
 
     *slash = 0;
     dir = ck_strdup(argv0);
     *slash = '/';
 
-    tmp = alloc_printf("%s/hopper-llvm-rt.o", dir);
+    tmp = alloc_printf("%s/libHopperPass.so", dir);
 
     if (!access(tmp, R_OK)) {
       obj_path = dir;
@@ -83,32 +78,24 @@ static void find_obj(u8* argv0) {
 
     ck_free(tmp);
     ck_free(dir);
-
   }
 
-/*
-  if (!access(HOPPER_LIB_DIR "/hopper-llvm-rt.o", R_OK)) {
-    obj_path = HOPPER_LIB_DIR;
-    return;
-  }
-  */
-
-  FATAL("Unable to find 'hopper-llvm-rt.o' or 'hopper-llvm-pass.so'. Please set HOPPER_PATH");
-
+  FATAL("Unable to find 'libHopperPass.so'. Please set HOPPER_PATH");
 }
-
 
 /* Copy argv to cc_params, making the necessary edits. */
 
 static void edit_params(u32 argc, char** argv) {
-
   u8 fortify_set = 0, asan_set = 0, x_set = 0, bit_mode = 0;
-  u8 *name;
+  u8* name;
 
   cc_params = ck_alloc((argc + 128) * sizeof(u8*));
 
   name = strrchr(argv[0], '/');
-  if (!name) name = argv[0]; else name++;
+  if (!name)
+    name = argv[0];
+  else
+    name++;
 
   if (!strcmp(name, "hopper-clang++")) {
     u8* alt_cxx = getenv("HOPPER_CXX");
@@ -118,25 +105,35 @@ static void edit_params(u32 argc, char** argv) {
     cc_params[0] = alt_cc ? alt_cc : (u8*)"clang";
   }
 
-  /* There are two ways to compile hopper-clang. In the traditional mode, we
-     use hopper-llvm-pass.so to inject instrumentation. In the experimental
-     'trace-pc-guard' mode, we use native LLVM instrumentation callbacks
-     instead. The latter is a very recent addition - see:
+  // Do not support TRACE_PC
 
-     http://clang.llvm.org/docs/SanitizerCoverage.html#tracing-pcs-with-guards */
-
-#ifdef USE_TRACE_PC
-  cc_params[cc_par_cnt++] = "-fsanitize-coverage=trace-pc-guard";
-#ifndef __ANDROID__
-  cc_params[cc_par_cnt++] = "-mllvm";
-  cc_params[cc_par_cnt++] = "-sanitizer-coverage-block-threshold=0";
-#endif
-#else
+  // printf("version: %d\n", LLVM_VERSION_MAJOR);
+  /*
   cc_params[cc_par_cnt++] = "-Xclang";
   cc_params[cc_par_cnt++] = "-load";
   cc_params[cc_par_cnt++] = "-Xclang";
-  cc_params[cc_par_cnt++] = alloc_printf("%s/hopper-llvm-pass.so", obj_path);
-#endif /* ^USE_TRACE_PC */
+  cc_params[cc_par_cnt++] = alloc_printf("%s/libHopperPrePass.so", obj_path);
+  */
+  cc_params[cc_par_cnt++] = "-Xclang";
+  cc_params[cc_par_cnt++] = "-load";
+  cc_params[cc_par_cnt++] = "-Xclang";
+  cc_params[cc_par_cnt++] = alloc_printf("%s/libHopperPass.so", obj_path);
+#if LLVM_VERSION_MAJOR >= 11
+/*
+#if LLVM_VERSION_MAJOR < 16
+  cc_params[cc_par_cnt++] = "-fexperimental-new-pass-manager";
+#endif
+  cc_params[cc_par_cnt++] = "-Xclang";
+  cc_params[cc_par_cnt++] =
+      alloc_printf("-fpass-plugin=%s/libHopperPrePass.so", obj_path);
+      */
+#if LLVM_VERSION_MAJOR < 16
+  cc_params[cc_par_cnt++] = "-fexperimental-new-pass-manager";
+#endif
+  cc_params[cc_par_cnt++] = "-Xclang";
+  cc_params[cc_par_cnt++] =
+      alloc_printf("-fpass-plugin=%s/libHopperPass.so", obj_path);
+#endif
 
   cc_params[cc_par_cnt++] = "-Qunused-arguments";
 
@@ -149,31 +146,25 @@ static void edit_params(u32 argc, char** argv) {
 
     if (!strcmp(cur, "-x")) x_set = 1;
 
-    if (!strcmp(cur, "-fsanitize=address") ||
-        !strcmp(cur, "-fsanitize=memory")) asan_set = 1;
+    if (!strcmp(cur, "-fsanitize=address") || !strcmp(cur, "-fsanitize=memory"))
+      asan_set = 1;
 
     if (strstr(cur, "FORTIFY_SOURCE")) fortify_set = 1;
 
-    if (!strcmp(cur, "-Wl,-z,defs") ||
-        !strcmp(cur, "-Wl,--no-undefined")) continue;
+    if (!strcmp(cur, "-Wl,-z,defs") || !strcmp(cur, "-Wl,--no-undefined"))
+      continue;
 
     cc_params[cc_par_cnt++] = cur;
-
   }
 
   if (getenv("HOPPER_HARDEN")) {
-
     cc_params[cc_par_cnt++] = "-fstack-protector-all";
 
-    if (!fortify_set)
-      cc_params[cc_par_cnt++] = "-D_FORTIFY_SOURCE=2";
-
+    if (!fortify_set) cc_params[cc_par_cnt++] = "-D_FORTIFY_SOURCE=2";
   }
 
   if (!asan_set) {
-
     if (getenv("HOPPER_USE_ASAN")) {
-
       if (getenv("HOPPER_USE_MSAN"))
         FATAL("ASAN and MSAN are mutually exclusive");
 
@@ -184,7 +175,6 @@ static void edit_params(u32 argc, char** argv) {
       cc_params[cc_par_cnt++] = "-fsanitize=address";
 
     } else if (getenv("HOPPER_USE_MSAN")) {
-
       if (getenv("HOPPER_USE_ASAN"))
         FATAL("ASAN and MSAN are mutually exclusive");
 
@@ -193,34 +183,21 @@ static void edit_params(u32 argc, char** argv) {
 
       cc_params[cc_par_cnt++] = "-U_FORTIFY_SOURCE";
       cc_params[cc_par_cnt++] = "-fsanitize=memory";
-
     }
-
   }
 
-#ifdef USE_TRACE_PC
-
-  if (getenv("HOPPER_INST_RATIO"))
-    FATAL("HOPPER_INST_RATIO not available at compile time with 'trace-pc'.");
-
-#endif /* USE_TRACE_PC */
-
   if (!getenv("HOPPER_DONT_OPTIMIZE")) {
-
     cc_params[cc_par_cnt++] = "-g";
     cc_params[cc_par_cnt++] = "-O3";
     cc_params[cc_par_cnt++] = "-funroll-loops";
-
   }
 
   if (getenv("HOPPER_NO_BUILTIN")) {
-
     cc_params[cc_par_cnt++] = "-fno-builtin-strcmp";
     cc_params[cc_par_cnt++] = "-fno-builtin-strncmp";
     cc_params[cc_par_cnt++] = "-fno-builtin-strcasecmp";
     cc_params[cc_par_cnt++] = "-fno-builtin-strncasecmp";
     cc_params[cc_par_cnt++] = "-fno-builtin-memcmp";
-
   }
 
   cc_params[cc_par_cnt++] = "-D__HOPPER_HAVE_MANUAL_CONTROL=1";
@@ -252,72 +229,52 @@ static void edit_params(u32 argc, char** argv) {
     cc_params[cc_par_cnt++] = "none";
   }
 
-#ifndef __ANDROID__
-  switch (bit_mode) {
-
-    case 0:
-      cc_params[cc_par_cnt++] = alloc_printf("%s/hopper-llvm-rt.o", obj_path);
-      break;
-
-    case 32:
-      cc_params[cc_par_cnt++] = alloc_printf("%s/hopper-llvm-rt-32.o", obj_path);
-
-      if (access(cc_params[cc_par_cnt - 1], R_OK))
-        FATAL("-m32 is not supported by your compiler");
-
-      break;
-
-    case 64:
-      cc_params[cc_par_cnt++] = alloc_printf("%s/hopper-llvm-rt-64.o", obj_path);
-
-      if (access(cc_params[cc_par_cnt - 1], R_OK))
-        FATAL("-m64 is not supported by your compiler");
-
-      break;
-
-  }
-#endif
-
   cc_params[cc_par_cnt] = NULL;
-
 }
-
 
 /* Main entry point */
 
 int main(int argc, char** argv) {
-
   if (argc < 2) {
+    SAYF(
+        "\n"
+        "This is a helper application for hopper-fuzz. It serves as a drop-in "
+        "replacement\n"
+        "for clang, letting you recompile third-party code with the required "
+        "runtime\n"
+        "instrumentation. A common use pattern would be one of the "
+        "following:\n\n"
 
-    SAYF("\n"
-         "This is a helper application for hopper-fuzz. It serves as a drop-in replacement\n"
-         "for clang, letting you recompile third-party code with the required runtime\n"
-         "instrumentation. A common use pattern would be one of the following:\n\n"
+        "  CC=hopper-clang ./configure\n"
+        "  CXX=hopper-clang++ ./configure\n\n"
 
-         "  CC=hopper-clang ./configure\n"
-         "  CXX=hopper-clang++ ./configure\n\n"
+        "In contrast to the traditional hopper-clang tool, this version is "
+        "implemented as\n"
+        "an LLVM pass and tends to offer improved performance with slow "
+        "programs.\n\n"
 
-         "In contrast to the traditional hopper-clang tool, this version is implemented as\n"
-         "an LLVM pass and tends to offer improved performance with slow programs.\n\n"
-
-         "You can specify custom next-stage toolchain via HOPPER_CC and HOPPER_CXX. Setting\n"
-         "HOPPER_HARDEN enables hardening optimizations in the compiled code.\n\n");
+        "You can specify custom next-stage toolchain via HOPPER_CC and "
+        "HOPPER_CXX. Setting\n"
+        "HOPPER_HARDEN enables hardening optimizations in the compiled "
+        "code.\n\n");
 
     exit(1);
-
   }
-
 
 #ifndef __ANDROID__
   find_obj(argv[0]);
 #endif
 
   edit_params(argc, argv);
+  
+ for (int i = 0; i < cc_par_cnt; i++) {
+    printf("%s ", cc_params[i]);
+  }
+  printf("\n");
 
   execvp(cc_params[0], (char**)cc_params);
 
   FATAL("Oops, failed to execute '%s' - check your PATH", cc_params[0]);
 
   return 0;
-
 }

@@ -271,6 +271,28 @@ void set_file_name_suffix(char *filename, char *suffix) {
   }
 }
 
+void hook_malloc(uint32_t id, int64_t arg1, int64_t *ret) {
+  entry_malloc(id, arg1);
+  void *(*f)(size_t) = (void *(*)(size_t)) * malloc_ptr;
+  *ret = (int64_t)f((size_t)arg1);
+  exit_malloc(id, *ret);
+}
+
+void hook_calloc(uint32_t id, int64_t arg1, int64_t arg2, int64_t *ret) {
+  entry_calloc(id, arg1, arg2);
+  void *(*f)(size_t, size_t) = (void *(*)(size_t, size_t)) * calloc_ptr;
+  *ret = (int64_t)f((size_t)arg1, (size_t)arg2);
+  exit_calloc(id, *ret);
+}
+
+void hook_realloc(uint32_t id, int64_t arg1, int64_t arg2, int64_t *ret) {
+  entry_realloc(id, arg1, arg2);
+  void *(*f)(size_t, size_t) = (void *(*)(size_t, size_t)) * realloc_ptr;
+  *ret = (int64_t)f((size_t)arg1, (size_t)arg2);
+  exit_realloc(id, *ret);
+}
+
+
 // FILE *fopen( const char *filename, const char *mode );
 // FILE *fopen( const char *restrict filename, const char *restrict mode );
 // errno_t fopen_s( FILE *restrict *restrict streamptr, const char *restrict
@@ -309,23 +331,3 @@ errno_t freopen_s( FILE *restrict *restrict newstreamptr,
                    const char *restrict filename, const char *restrict mode,
                    FILE *restrict stream );
 */
-void hook_malloc(uint32_t id, int64_t arg1, int64_t *ret) {
-  entry_malloc(id, arg1);
-  void *(*f)(size_t) = (void *(*)(size_t)) * malloc_ptr;
-  *ret = (int64_t)f((size_t)arg1);
-  exit_malloc(id, *ret);
-}
-
-void hook_calloc(uint32_t id, int64_t arg1, int64_t arg2, int64_t *ret) {
-  entry_calloc(id, arg1, arg2);
-  void *(*f)(size_t, size_t) = (void *(*)(size_t, size_t)) * calloc_ptr;
-  *ret = (int64_t)f((size_t)arg1, (size_t)arg2);
-  exit_calloc(id, *ret);
-}
-
-void hook_realloc(uint32_t id, int64_t arg1, int64_t arg2, int64_t *ret) {
-  entry_realloc(id, arg1, arg2);
-  void *(*f)(size_t, size_t) = (void *(*)(size_t, size_t)) * realloc_ptr;
-  *ret = (int64_t)f((size_t)arg1, (size_t)arg2);
-  exit_realloc(id, *ret);
-}

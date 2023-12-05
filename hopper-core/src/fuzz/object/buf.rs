@@ -147,15 +147,20 @@ impl<T: ObjFuzzable + ObjGenerate> BufMutate for Vec<T> {
                 macro_rules! mutate_num_by_op {
                     ($ty:ident) => {{
                         let ptr = val as *mut T as *mut $ty;
-                        let mut num = unsafe { ptr.read_unaligned() };
-                        if !swap {
+                        if !swap && ptr.align_offset(std::mem::align_of::<$ty>()) == 0 {
+                            let num = unsafe { ptr.as_mut().unwrap() };
                             num.mutate_by_op(sub_state, &[], op)?;
                         } else {
-                            let mut swap_num = num.swap_bytes();
-                            swap_num.mutate_by_op(sub_state, &[], op)?;
-                            num = swap_num.swap_bytes();
+                            let mut num = unsafe { ptr.read_unaligned() };
+                            if !swap {
+                                num.mutate_by_op(sub_state, &[], op)?;
+                            } else {
+                                let mut swap_num = num.swap_bytes();
+                                swap_num.mutate_by_op(sub_state, &[], op)?;
+                                num = swap_num.swap_bytes();
+                            }
+                            unsafe { ptr.write_unaligned(num) };
                         }
-                        unsafe { ptr.write_unaligned(num) };
                     }};
                 }
                 match *use_bytes {
@@ -259,27 +264,36 @@ impl<T: ObjFuzzable + ObjGenerate> BufMutate for Vec<T> {
         let buf_len = self.len();
         let use_bytes = use_bytes(buf_len);
         let swap = rng::unlikely();
-        let offset = rng::gen_range(0..buf_len - use_bytes + 1);
+        let mut offset = weight::choose_weighted_by_state(state).unwrap_or(buf_len);
+        if offset > buf_len - use_bytes {
+            offset = rng::gen_range(0..buf_len - use_bytes + 1);
+        }
         let buf = self;
         let val = &mut buf[offset];
         let sub_state = state.get_child_mut(offset)?;
+        // FIXME:
         macro_rules! mutate_num {
             ($ty:ident) => {{
                 let ptr = val as *mut T as *mut $ty;
-                let mut num = unsafe { ptr.read_unaligned() };
                 let op_ret;
-                if !swap {
+                if !swap && ptr.align_offset(std::mem::align_of::<$ty>()) == 0 {
+                    let num = unsafe { ptr.as_mut().unwrap() };
                     op_ret = num.mutate(sub_state)?;
                 } else {
-                    let mut swap_num = num.swap_bytes();
-                    op_ret = swap_num.mutate(sub_state)?;
-                    num = swap_num.swap_bytes();
+                    // not align
+                    let mut num = unsafe { ptr.read_unaligned() };
+                    if !swap {
+                        op_ret = num.mutate(sub_state)?;
+                    } else {
+                        let mut swap_num = num.swap_bytes();
+                        op_ret = swap_num.mutate(sub_state)?;
+                        num = swap_num.swap_bytes();
+                    }
+                    unsafe { ptr.write_unaligned(num) };
                 }
-                unsafe { ptr.write_unaligned(num) };
                 op_ret
             }};
         }
-
         let op = match use_bytes {
             1 => val.mutate(sub_state)?,
             2 => mutate_num!(u16),

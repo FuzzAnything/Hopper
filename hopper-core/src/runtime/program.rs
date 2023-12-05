@@ -10,7 +10,7 @@ use std::{
 
 use super::*;
 use crate::{
-    feedback::{CmpOperation, ResourceStates, ReviewCollector, SanitizeChecker},
+    feedback::{CmpOperation, ResourceStates, ReviewCollector, SanitizeChecker, globl},
     log, MutateOperator, RngState,
 };
 
@@ -38,15 +38,15 @@ pub struct FuzzProgram {
 impl FuzzProgram {
     /// Eval this program
     pub fn eval(&mut self) -> eyre::Result<()> {
-        reset_rt_stmt_index();
+        globl::reset_rt_stmt_index();
         let mut resource_states = ResourceStates::default();
         for i in 0..self.stmts.len() {
             let (used_stmts, unused) = self.stmts.split_at_mut(i);
             log!(trace, "{}", unused[0].serialize()?.trim_end());
             unused[0].stmt.eval(used_stmts, &mut resource_states)?;
-            inc_rt_stmt_index();
+            globl::inc_rt_stmt_index();
         }
-        set_rt_last_stmt_index();
+        globl::set_rt_last_stmt_index();
         Ok(())
     }
 
@@ -66,7 +66,7 @@ impl FuzzProgram {
                 crate::utils::LOG_COND = false
             };
             let instrs = crate::feedback::get_instr_list();
-            let index = instrs.last_stmt_index();
+            let index = instrs.last_stmt_index() as usize;
             println!("exit at {index}..");
             let used_stmts = unsafe { std::slice::from_raw_parts(STMTS, index) };
             let cur = unsafe { &*STMTS.add(index) };
@@ -94,7 +94,7 @@ impl FuzzProgram {
             COLLECTOR = review_collector.as_mut() as *mut ReviewCollector;
             STATE = resource_states.as_ref() as *const ResourceStates;
         }
-        reset_rt_stmt_index();
+        globl::reset_rt_stmt_index();
         resource_states.set_review();
         for i in 0..self.stmts.len() {
             let (used_stmts, unused) = self.stmts.split_at_mut(i);
@@ -103,9 +103,9 @@ impl FuzzProgram {
             if let FuzzStmt::Call(call) = &unused[0].stmt {
                 review_collector.collect_call_review(call, i, used_stmts, &resource_states)?;
             }
-            inc_rt_stmt_index();
+            globl::inc_rt_stmt_index();
         }
-        set_rt_last_stmt_index();
+        globl::set_rt_last_stmt_index();
         unsafe {
             REVIEWING = false;
         }
@@ -115,7 +115,7 @@ impl FuzzProgram {
     /// Sanitize the program, try to find false positive in crashes
     pub fn sanitize(&mut self) -> eyre::Result<()> {
         let mut checker = SanitizeChecker::new()?;
-        reset_rt_stmt_index();
+        globl::reset_rt_stmt_index();
         let mut resource_states = ResourceStates::default();
         resource_states.set_review();
         for i in 0..self.stmts.len() {
@@ -123,9 +123,9 @@ impl FuzzProgram {
             log!(trace, "{}", unused[0].serialize()?.trim_end());
             checker.check_before_eval_stmt(&unused[0], used_stmts, &resource_states)?;
             unused[0].stmt.eval(used_stmts, &mut resource_states)?;
-            inc_rt_stmt_index();
+            globl::inc_rt_stmt_index();
         }
-        set_rt_last_stmt_index();
+        globl::set_rt_last_stmt_index();
         Ok(())
     }
 
@@ -448,39 +448,6 @@ impl Hash for FuzzProgram {
 impl fmt::Display for FuzzProgram {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.serialize_all().unwrap())
-    }
-}
-
-// Used in updating stmt_index for cmp feeback
-#[cfg(feature = "e9_mode")]
-extern "C" {
-    // defined in asm.S
-    fn __hopper_inc_stmt_index();
-    fn __hopper_reset_stmt_index();
-    fn __hopper_last_stmt_index();
-}
-
-#[inline]
-fn inc_rt_stmt_index() {
-    #[cfg(all(feature = "e9_mode", not(test)))]
-    unsafe {
-        __hopper_inc_stmt_index()
-    }
-}
-
-#[inline]
-fn reset_rt_stmt_index() {
-    #[cfg(all(feature = "e9_mode", not(test)))]
-    unsafe {
-        __hopper_reset_stmt_index()
-    }
-}
-
-#[inline]
-fn set_rt_last_stmt_index() {
-    #[cfg(all(feature = "e9_mode", not(test)))]
-    unsafe {
-        __hopper_last_stmt_index()
     }
 }
 

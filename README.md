@@ -21,7 +21,7 @@ To learn more about Hopper, check out our [paper](https://arxiv.org/pdf/2309.034
 ```
 
 The script will create a `install` directory in hopper's root directory, then you can use `hopper`.
-To use the command anywhere, you can set your project directory in your PATH variable.
+To use the command anywhere, you can set the project directory in your PATH variable.
 
 ### Using Docker
 You can choose to use the Dockerfile, which build the requirements and Hopper.
@@ -38,7 +38,7 @@ hopper compile --header ./cJSON.h --library ./libcjson.so --output output
 
 Use `hopper compile --help` to see detailed usage. If the compiling reports errors about header file, refer to the usage of [rust-bindgen](https://rust-lang.github.io/rust-bindgen/), which we used for parsing header file.
 You may wrap the header file with the missing definitions.
-Hopper uses [E9Patch](https://github.com/GJDuck/e9patch) to instrument binaries by default.
+Hopper uses [E9Patch](https://github.com/GJDuck/e9patch) to instrument binaries by default. Optionally, you can use [LLVM](./hopper-instrument/llvm-mode/) for source code instrumentation.
 
 After running `compile`, you will find that it generates the following files in the output directory:
 - `bin/hopper-fuzzer`:  generates inputs, maintatins states, and use `harness` to excuted the inputs.
@@ -97,7 +97,7 @@ echo core | sudo tee /proc/sys/kernel/core_pattern
 ```
 
 ### Function pattern 
-Hopper generates inputs for all functions in libiries by default. However, there are two ways to filter functions in Hopper: exlucding functions or including functions. This way, it can be focus on intersting functions.
+Hopper generates inputs for all functions that appear in both headers and libiries by default. However, there are two ways to filter functions in Hopper: exlucding functions or including functions. This way, it can be focus on intersting functions.
 
 #### `--func-pattern`
 ```

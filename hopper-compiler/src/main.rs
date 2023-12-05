@@ -75,7 +75,11 @@ fn instrument(library: &Path, output: &Path, config: &Config, lib_info: &BinaryI
         }
     }
     #[cfg(target_os = "linux")]
-    patch::patchelf_set_so_name(&lib_name, output_lib.to_str().context("fail to be str")?)?;
+    {
+        let output_lib_path = output_lib.to_str().context("fail to be str")?;
+        patch::patchelf_set_so_name(&lib_name, output_lib_path)?;
+        patch::remove_prev_needed(&config.library, output_lib_path, lib_info)?;
+    }
     Ok(output_lib)
 }
 

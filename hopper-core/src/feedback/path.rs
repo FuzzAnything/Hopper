@@ -23,14 +23,21 @@ impl SHMable for Path {
     fn buf_size() -> usize {
         config::BRANCHES_SIZE
     }
-    fn post_hander() {
-        #[cfg(feature = "llvm_mode")]
-        {
-            unsafe { __hopper_update_shm_addr(&*shm as *const u8) };
-            crate::log!(info, "update {} shm pointer in llvm runtime !", T::name());
-        }
+    #[cfg(feature = "llvm_mode")]
+    fn post_hander(ptr: *const u8) {
+        unsafe { 
+            __hopper_area_ptr = ptr;
+        };
+        crate::log!(info, "update {} shm pointer in llvm runtime !", Self::name());
     }
 }
+
+#[cfg(feature = "llvm_mode")]
+static mut __HOPPER_AREA_INITIAL: [u8; BRANCHES_SIZE] = [255; BRANCHES_SIZE];
+
+#[cfg(feature = "llvm_mode")]
+#[no_mangle]
+pub static mut __hopper_area_ptr: *const u8 = unsafe { &__HOPPER_AREA_INITIAL[0] as *const u8 };
 
 impl Path {
     pub fn get_list(&self) -> Vec<(usize, BucketType)> {
@@ -165,11 +172,6 @@ static COUNT_LOOKUP: [u16; 256] = [
     32768, 32768, 32768, 32768, 32768, 32768, 32768, 32768, 32768, 32768, 32768, 32768, 32768,
     32768, 32768, 32768, 32768, 32768, 32768, 32768, 32768, 32768, 32768, 32768, 32768, 32768,
 ];
-
-#[cfg(feature = "llvm_mode")]
-extern "C" {
-    fn __hopper_update_shm_addr(addr: *const u8);
-}
 
 #[test]
 fn test_include() {

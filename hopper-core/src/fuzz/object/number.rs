@@ -94,7 +94,7 @@ macro_rules! impl_fuzz_gen_byte {
 impl_fuzz_gen_byte!(u8, i8, char);
 
 impl ObjGenerate for f32 {
-    fn generate_new( state: &mut ObjectState) -> eyre::Result<Self> {
+    fn generate_new(state: &mut ObjectState) -> eyre::Result<Self> {
         if flag::is_pilot_det() || state.mutate.borrow().is_zero_weight() {
             return Ok(Self::default());
         }
@@ -103,7 +103,7 @@ impl ObjGenerate for f32 {
 }
 
 impl ObjGenerate for f64 {
-    fn generate_new( state: &mut ObjectState) -> eyre::Result<Self> {
+    fn generate_new(state: &mut ObjectState) -> eyre::Result<Self> {
         if flag::is_pilot_det() || state.mutate.borrow().is_zero_weight() {
             return Ok(Self::default());
         }
@@ -209,7 +209,7 @@ macro_rules! impl_int_mut {
                         if let Some(det_cmp) = cmps.iter_mut().find(|c| c.det) {
                             log!(trace, "cmp det: {det_cmp:?}");
                             det_cmp.det = false;
-                            (set_cmp(n, det_cmp, s), DetAction::Keep)
+                            (set_cmp(n, det_cmp, s, 0), DetAction::Keep)
                         } else {
                             (MutateOperation::Nop, DetAction::Finish)
                         }
@@ -250,7 +250,6 @@ macro_rules! impl_fuzz_mut_cast {
 
 // Cast them for U* and do mutating
 impl_fuzz_mut_cast!(char, u8);
-
 
 impl ObjMutate for bool {
     fn mutate(&mut self, state: &mut ObjectState) -> eyre::Result<MutateOperator> {
@@ -351,7 +350,7 @@ where
 
 fn bit_flip_at<T>(num: &mut T, idx: u8) -> MutateOperation
 where
-    T: BitXor<Output = T> + IntCast + Copy
+    T: BitXor<Output = T> + IntCast + Copy,
 {
     log!(trace, "xoring bit at {}-th ", idx);
     *num = (*num) ^ T::from_u128(1_u128 << idx);
@@ -443,23 +442,54 @@ where
 {
     let val: T = rng::gen();
     *num = val;
-    MutateOperation::IntRandom {
-        val: val.as_u64()
+    MutateOperation::IntRandom { val: val.as_u64() }
+}
+
+fn is_u8(n: u64) -> bool {
+    n < 256
+}
+
+fn is_i8(n: u64, size: usize) -> bool {
+    if size == 1 {
+        true
+    } else if size == 2 {
+        let n = n as i16;
+        (-128..128).contains(&n)
+    } else if size == 4 {
+        let n = n as i32;
+        (-128..128).contains(&n)
+    } else {
+        let n = n as i64;
+        (-128..128).contains(&n)
     }
 }
 
-fn set_cmp<T>(num: &mut T, cmp_state: &CmpState, object_state: &ObjectState) -> MutateOperation
+fn set_cmp<T>(
+    num: &mut T,
+    cmp_state: &CmpState,
+    object_state: &ObjectState,
+    bias: i32,
+) -> MutateOperation
 where
     T: IntCast + Copy + std::fmt::Debug,
 {
     let op = cmp_state.op.borrow();
-    let size = op.size as usize;
-    let operand = if cmp_state.affect_left {
+    let mut size = op.size as usize;
+    let mut operand: u64 = if cmp_state.affect_left {
         op.operand2
     } else {
         op.operand1
     };
+    operand = operand.saturating_add_signed(bias as i64);
     let type_size = std::mem::size_of::<T>();
+    // type mismatch, e.g char is casted to int
+    if type_size == 1 && size > 1
+        && ((is_u8(op.operand1) && is_u8(op.operand2))
+            || (is_i8(op.operand1, size) && is_i8(op.operand2, size)))
+    {
+        crate::log!(trace, "type mismatch, size should be 1");
+        size = 1;
+    }
     // for vec<u8> or vec<i8>
     if type_size == 1 && type_size < size {
         if let FieldKey::Index(i) = object_state.key {
@@ -469,15 +499,15 @@ where
                 match size {
                     2 => {
                         let ptr = num as *mut T as *mut u16;
-                        unsafe { ptr.write_unaligned( u16::from_u64(operand)) };
+                        unsafe { ptr.write_unaligned(u16::from_u64(operand)) };
                     }
                     4 => {
                         let ptr = num as *mut T as *mut u32;
-                        unsafe { ptr.write_unaligned( u32::from_u64(operand)) };
+                        unsafe { ptr.write_unaligned(u32::from_u64(operand)) };
                     }
                     8 => {
                         let ptr = num as *mut T as *mut u64;
-                        unsafe { ptr.write_unaligned( u64::from_u64(operand)) };
+                        unsafe { ptr.write_unaligned(u64::from_u64(operand)) };
                     }
                     _ => {
                         *num = T::from_u64(operand);
@@ -486,19 +516,26 @@ where
             }
         }
     } else {
-        log!(trace, "cmp set: {:?}", cmp_state);
         *num = T::from_u64(operand);
+    }
+    log!(trace, "cmp set: {operand}");
+    if bias > 0 {
+        log!(trace, "add bias: {bias}");
     }
     MutateOperation::IntCmp { val: operand }
 }
 
 impl IrEntry {
-    pub fn as_constant<T: Bounded + IntCast + Copy + WrappingAdd<Output = T> + WrappingSub<Output = T>>(&self) -> T {
+    pub fn as_constant<
+        T: Bounded + IntCast + Copy + WrappingAdd<Output = T> + WrappingSub<Output = T>,
+    >(
+        &self,
+    ) -> T {
         match self {
             Self::Min(off) => T::min_value().wrapping_add(&T::from_u64(*off as u64)),
             Self::Max(off) => T::max_value().wrapping_sub(&T::from_u64(*off as u64)),
             Self::Constant(val) => T::from_u64(*val),
-            _ => T::from_u64(0)
+            _ => T::from_u64(0),
         }
     }
 }
@@ -513,19 +550,20 @@ where
         + WrappingSub<Output = T>
         + std::fmt::Debug,
 {
-    let mut first_op = set_corpus(num);
     if rng::likely() {
         if let Some(cmp_state) = rng::choose_iter(state.mutate.borrow().related_cmps.iter()) {
-            first_op = set_cmp(num, cmp_state, state);
-        } 
+            let mut bias = 0;
+            if rng::likely() {
+                bias = rng::gen_range(-5..=5);
+            }
+            crate::log_trace!("cmpvar use cmp, bias: {bias}");
+            return set_cmp(num, cmp_state, state, bias);
+        }
     }
-    if rng::unlikely() {
-        return first_op;
-    }
+    crate::log_trace!("cmpvar use corpus");
+    let _ = set_corpus(num);
     let _arith_op = arithmetic(num);
-    MutateOperation::IntVariance {
-        val: num.as_u64()
-    }
+    MutateOperation::IntVariance { val: num.as_u64() }
 }
 
 fn float_add<T>(num: &mut T, change: f32) -> MutateOperation
@@ -591,7 +629,7 @@ macro_rules! impl_int_cast_sign {
                 *self as $cast as u128
             }
         }
-    }
+    };
 }
 
 impl_int_cast_sign!(i8, u8);
@@ -643,16 +681,16 @@ fn test_write_bytes() {
         object_state.add_child(FieldKey::Index(i), "usize");
     }
     println!("buf ptr: {:?}", buf.as_slice().as_ptr());
-    set_cmp(&mut buf[1], &cmp_state, &object_state.children[1]);
+    set_cmp(&mut buf[1], &cmp_state, &object_state.children[1], 0);
     println!("buf: {buf:?}");
 
     cmp_state.op.borrow_mut().operand1 = 987654325;
     cmp_state.op.borrow_mut().size = 4;
-    set_cmp(&mut buf[4], &cmp_state, &object_state.children[4]);
+    set_cmp(&mut buf[4], &cmp_state, &object_state.children[4], 0);
     println!("buf: {buf:?}");
 
     cmp_state.op.borrow_mut().operand1 = 4194967296;
     cmp_state.op.borrow_mut().size = 4;
-    set_cmp(&mut buf[10], &cmp_state, &object_state.children[10]);
+    set_cmp(&mut buf[10], &cmp_state, &object_state.children[10], 0);
     println!("buf: {buf:?}");
 }

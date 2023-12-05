@@ -4,13 +4,11 @@
 #ifndef MAP_SIZE_POW2
 #define MAP_SIZE_POW2 16
 #endif
+#ifdef HOPPER_MAP_SIZE_POW2
+#define MAP_SIZE_POW2 HOPPER_MAP_SIZE_POW2
+#endif
 #define MAP_SIZE ((size_t)1 << MAP_SIZE_POW2)
 
-#define ENABLE_UNFOLD_BRANCH 1
-
-#ifndef RR
-#define RR(x) (random() % (x))
-#endif
 
 #include <stdint.h>
 #include <stdlib.h>

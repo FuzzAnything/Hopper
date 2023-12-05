@@ -17,6 +17,8 @@ gimli = { version = "0.26", default-features = false, features = ["read"] }
 object = { version = "0.28", default-features = false, features = ["read"] }
 eyre = "0.6"
 twoway = "0.2"
+# NO GPL
+# patchelf = "0.2.1"
 
 [features]
 default = ["elf", "dwarf"]

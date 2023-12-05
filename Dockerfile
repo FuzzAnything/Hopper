@@ -12,7 +12,7 @@ ENV HOPPER_BIN=/hopper/hopper \
 RUN apt-get update \
     && apt-get -y upgrade \
     && apt-get -y install build-essential wget curl cmake git unzip xxd protobuf-compiler libprotobuf-dev \
-    && apt-get -y install llvm-dev libclang-dev clang \
+    && apt-get -y install llvm llvm-dev libclang-dev clang \
     && apt-get clean
 
 # ENV RUSTUP_DIST_SERVER="https://mirrors.ustc.edu.cn/rust-static"

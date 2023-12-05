@@ -19,24 +19,28 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
 
     if [ ! -x $INSTALL_DIR/patchelf ]; then
         info "download patchelf ..."
-        cd install
+        cd $INSTALL_DIR
         mkdir -p tmp
         cd tmp
         wget https://github.com/NixOS/patchelf/releases/download/${PATCHELF_VERSION}/patchelf-${PATCHELF_VERSION}-x86_64.tar.gz
         tar -xvf patchelf-${PATCHELF_VERSION}-x86_64.tar.gz
         cp bin/patchelf ../.
-        cd ../../
     fi
 fi
 
-# info "start install hopper's llvm plugins ..."
-# cd hopper-instrument/llvm-mode
-# make PREFIX=$INSTALL_DIR
+info "start install hopper's llvm plugins ..."
+cd $INSTALL_DIR
+rm -rf llvm_build
+mkdir llvm_build && cd llvm_build 
+cmake -DHOPPER_BIN_DIR=$INSTALL_DIR $ROOT_DIR/hopper-instrument/llvm-mode
+make
+make install
 
-BUILD_TYPE=${BUILD_TYPE:-debug}
-# BUILD_TYPE=${BUILD_TYPE:-release}
+# BUILD_TYPE=${BUILD_TYPE:-debug}
+BUILD_TYPE=${BUILD_TYPE:-release}
 
 info "start build and install hopper fuzzer ..."
+cd $ROOT_DIR
 if [[ "$BUILD_TYPE" == "debug" ]]; then
     cargo build
 else

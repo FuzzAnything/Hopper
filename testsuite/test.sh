@@ -21,8 +21,8 @@ USAGE="Usage: $(basename $0) [make|compile|build|test|build_all|test_all|help] .
 CC=${CC:-gcc}
 CFLAGS=${CFLAGS:-}
 LDFLAGS="-g -fPIC -Wall"
-
 if [[ -v USE_LLVM ]]; then
+    export HOPPER_DONT_OPTIMIZE=1
     CC=${HOPPER_CC}
 fi
 
@@ -60,6 +60,7 @@ make_clib() {
     init_lib_name $NAME
     SRC=${NAME}.c
     cmd="${CC} ${CFLAGS} ${LDFLAGS} ${DY_LDFLAGS} -o ${DIR}/${DY_LIB_NAME} ${DIR}/${SRC}"
+    info "compiling lib ${NAME}"
     info "${cmd}"
     eval ${cmd}
 }
@@ -72,11 +73,11 @@ compile_hopper() {
     HEADER=${NAME}.h
     COMPILE_OPTIONS=${COMPILE_OPTIONS:-}
     export HOPPER_TESTSUITE=1
+    info "compiling harness with ${NAME}"
     ${HOPPER} compile ${COMPILE_OPTIONS} \
         --header ${DIR}/${HEADER} \
         --library ${DIR}/${DY_LIB_NAME} \
         --output ${DIR}/output
-    eval ${cmd}
 }
 
 hopper_test() {
@@ -87,6 +88,7 @@ hopper_test() {
     rm -rf ${DIR}/output/crashes
     rm -rf ${DIR}/output/hangs
     rm -rf ${DIR}/output/misc
+    rm -rf ${DIR}/output/release
     unset HOPPER_SEED_DIR
     [ -d "${DIR}/seeds" ] && export HOPPER_SEED_DIR=${DIR}/seeds
     unset HOPPER_DICT
@@ -160,6 +162,7 @@ build)
     if [ $# -ge 2 ]; then
         make_clib $2
         compile_hopper $2
+        exit 0
     else
         usage
     fi
