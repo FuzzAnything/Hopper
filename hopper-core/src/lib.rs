@@ -144,7 +144,7 @@ pub fn run_program(file: &str, cmd: ForkCmd) -> eyre::Result<()> {
     }
     let show_mem= std::env::args().any(|f| f == "--mem");
     if show_mem {
-        feedback.instrs.mem_iter().for_each(|m| crate::log_info!("mem: {m:?}"));
+        feedback.instrs.mem_iter().for_each(|m| println!("mem: {m:?}"));
     }
     crate::log!(info, "cmp_len: {}", feedback.instrs.cmp_len());
     crate::log!(info, "mem_len: {}", feedback.instrs.mem_len());

@@ -253,8 +253,8 @@ impl CallStmt {
         depth: usize,
     ) -> eyre::Result<()> {
         let ident = self.fg.arg_idents[arg_pos];
-        let mut type_name = self.fg.arg_types[arg_pos];
-        let mut alias_type_name = self.fg.alias_arg_types[arg_pos];
+        let type_name = self.fg.arg_types[arg_pos];
+        let alias_type_name = self.fg.alias_arg_types[arg_pos];
         crate::log!(
             trace,
             "generate {arg_pos}-th arg, type: {type_name} ({alias_type_name}), ident: {ident}, depth: {depth}, single: {}",
@@ -300,6 +300,7 @@ impl CallStmt {
                         self.insert_call_as_arg(program, arg_pos, type_name, &ret_f, ident, depth)?;
                         return Ok(true);
                     }
+                    /* 
                     Constraint::CastFrom { cast_type } => {
                         // make sure it is pointer
                         eyre::ensure!(
@@ -308,8 +309,9 @@ impl CallStmt {
                         );
                         // modify type_name, and alias_type
                         type_name = utils::get_static_ty(cast_type);
-                        alias_type_name = type_name;
+                        // alias_type_name = type_name;
                     }
+                    */
                     Constraint::SetVal { val: _ } | Constraint::Range { min: _, max: _ } => {
                         // avoid create calls
                         let load = LoadStmt::generate_new(program, type_name, ident, depth)?;

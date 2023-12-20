@@ -456,6 +456,13 @@ pub fn read_list_with_program_from_file<R: AsRef<Path>, T: Deserialize>(
         return Ok(list);
     }
     let file = File::open(p)?;
+    // make sure the file is newest
+    let created = file.metadata()?.modified()?;
+    let now = std::time::SystemTime::now();
+    if now.duration_since(created)?.as_secs() > 10 {
+        crate::log!(warn, "the review file '{p:?}' is not the newest!! now: {now:?}, crated: {created:?}");
+        return Ok(vec![]);
+    }
     let reader = BufReader::new(&file);
     for line in reader.lines() {
         if let Err(e) = line {

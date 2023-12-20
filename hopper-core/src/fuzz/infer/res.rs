@@ -76,6 +76,13 @@ impl Fuzzer {
         prefix: &LocFields,
         fields: &LocFields,
     ) -> eyre::Result<Option<ConstraintSig>> {
+        let full_f = prefix.with_suffix(fields.clone());
+        let f_name = call_stmt.fg.f_name;
+        if crate::filter_function_field_constraint_with(f_name, arg_pos, &full_f, |tc| {
+            tc.should_not_mutate()
+        }) {
+            return Ok(None);
+        }
         log!(
             trace,
             "try to infer arg: {arg_pos}, field {fields:?} to be underflow"
@@ -116,9 +123,8 @@ impl Fuzzer {
                 }
             }
         }
-        let full_f = prefix.with_suffix(fields.clone());
         add_function_constraint(
-            call_stmt.fg.f_name,
+            f_name,
             arg_pos,
             full_f,
             Constraint::NonZero,
@@ -252,9 +258,10 @@ impl Fuzzer {
             let mut c = Constraint::resource_related();
             let _ = crate::inspect_function_constraint_with(f_name, |fc| {
                 if let Some(tc) = fc.arg_constraints[arg_pos]
-                .list
-                .iter()
-                .find(|tc| tc.key == full_f) {
+                    .list
+                    .iter()
+                    .find(|tc| tc.key == full_f)
+                {
                     if matches!(&tc.constraint, Constraint::Range { min: _, max: _ }) {
                         c = tc.constraint.clone();
                         c.shrink_range();
@@ -263,13 +270,7 @@ impl Fuzzer {
                 Ok(())
             });
 
-            return add_function_constraint(
-                f_name,
-                arg_pos,
-                full_f,
-                c,
-                &comment,
-            );
+            return add_function_constraint(f_name, arg_pos, full_f, c, &comment);
         }
         Ok(None)
     }

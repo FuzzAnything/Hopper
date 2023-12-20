@@ -171,7 +171,10 @@ impl ReviewResult {
     /// Add review's result into constraints
     pub fn add_into_constraints(&self, program: &FuzzProgram) -> eyre::Result<()> {
         for ret in &self.call_rets {
-            let call_is = &program.stmts[ret.call_index];
+            let call_is = &program
+                .stmts
+                .get(ret.call_index)
+                .context("fail to find index")?;
             if let FuzzStmt::Call(call) = &call_is.stmt {
                 let call_name = call.fg.f_name;
                 let id = program.id;
@@ -387,7 +390,10 @@ fn set_program_mem_records(
                 // find all indices that used it.
                 for is in program.stmts.iter_mut() {
                     if let FuzzStmt::Load(load) = &mut is.stmt {
-                        if load.state.find_any_stmt_in_state_with(|ptee| ptee.get() == stmt_i) {
+                        if load
+                            .state
+                            .find_any_stmt_in_state_with(|ptee| ptee.get() == stmt_i)
+                        {
                             is.freed = Some(call_index.downgrade());
                         }
                     }
@@ -413,7 +419,12 @@ fn set_program_cmp_records(
     crate::log!(trace, "set cmp records..");
     // cmp inst
     let cmps = get_instr_list().get_cmp_ref_list();
-    crate::log!(trace, "store inst cmp list, program: {}, length: {}", program.id,cmps.len());
+    crate::log!(
+        trace,
+        "store inst cmp list, program: {}, length: {}",
+        program.id,
+        cmps.len()
+    );
     // eyre::ensure!(!cmps.is_empty(), "should not be empty");
     program.cmps = std::rc::Rc::new(cmps);
     // cmp function

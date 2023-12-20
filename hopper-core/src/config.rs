@@ -81,7 +81,7 @@ pub static TMP_DIR: &str = "misc/tmp";
 pub static REVIEW_DIR: &str = "misc/review";
 pub static HARNESS_WORK_DIR: &str = "working";
 pub const MAX_INPUT_SZIE: usize = 5000;
-pub const MAX_QUEUE_SIZE: usize = 6000;
+pub const MAX_QUEUE_SIZE: usize = 8000;
 
 // --- Mutation ---
 pub const ROUND_PILOT_NUM: usize = 256;
@@ -106,6 +106,7 @@ pub const MAX_RANGE_NUM: u64 = 4096;
 pub const RESERVED_FD_MIN: i32 = 3;
 pub const RESERVED_FD_MAX: i32 = 32;
 pub const RESERVED_FD_HUGE: i32 = 1000;
+pub const REVIEW_ID_BASE: usize = 1000000;
 
 // -----------------------------------------------------
 

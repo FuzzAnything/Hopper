@@ -54,6 +54,7 @@ impl ReviewResult {
                 }
                 found_file = true;
                 let call_name = call_stmt.fg.f_name;
+                crate::log!(trace, "prefix: {prefix:?}");
                 crate::add_function_constraint(
                     call_name,
                     arg_pos,

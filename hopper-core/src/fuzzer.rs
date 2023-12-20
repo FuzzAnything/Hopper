@@ -24,6 +24,7 @@ pub struct Fuzzer {
     pub count: usize,
     running: Arc<AtomicBool>,
     rounds: usize,
+    fail_cnt: usize,
     stuck: usize,
     start_at: time::Instant,
     found_abort: bool,
@@ -46,6 +47,7 @@ impl Fuzzer {
             rounds: 0,
             count: 0,
             stuck: 0,
+            fail_cnt: 0,
             start_at,
             found_abort: false,
         })
@@ -191,6 +193,7 @@ impl Fuzzer {
         let mut candidates = None;
         // enable generate program for function failed to run.
         let mut enable_fail = false;
+        self.fail_cnt = 0;
         // if we stuck in generate or mutate none new inputs, try to generate
         // inputs for rarely or failed targets
         if self.stuck > config::ROUND_STUCK_NUM {
@@ -229,7 +232,7 @@ impl Fuzzer {
             return Ok(false);
         }
         let seed = seed.unwrap();
-        let mut fail_cnt = 0;
+        self.fail_cnt = 0;
         let weight_sum = get_weight_sum(&seed.stmts);
         let mut max = config::ROUND_MUTATE_NUM;
         // if the program is simple, which does not deserve too many mutations
@@ -255,7 +258,7 @@ impl Fuzzer {
             if p.ops.is_empty() || p.stmts.len() > config::MAX_STMTS_LEN || is_incomplete_gen() {
                 continue;
             }
-            let (status, has_new) = self.run_program(&p, false, true)?;
+            let (_status, has_new) = self.run_program(&p, false, true)?;
             if has_new {
                 round_has_new = true;
                 // give the seed more power if we have found something new from it.
@@ -264,12 +267,9 @@ impl Fuzzer {
                 // }
             }
             // We skip the seed if it is easy to become failure after mutation,
-            if !status.is_normal() {
-                fail_cnt += 1;
-                if fail_cnt >= config::MAX_ROUND_FAIL_NUM {
-                    log!(debug, "the seed is easy to crash or hangs after mutation!");
-                    break;
-                }
+            if self.fail_cnt >= config::MAX_ROUND_FAIL_NUM {
+                log!(debug, "the seed is easy to crash or hangs after mutation!");
+                break;
             }
         }
         Ok(round_has_new)
@@ -306,7 +306,8 @@ impl Fuzzer {
             let status = self.executor.execute_program_fast(program)?;
             // We do not like seeds may crash or hangs
             if !status.is_normal() {
-                crate::log_warn!("fail to count time for program, status: {status:?}");
+                self.fail_cnt += 5;
+                crate::log_warn!("fail to count time for program {}, status: {status:?}", program.id);
                 crate::log_trace!("program: {program}");
                 return Ok(None);
                 // it is not fit our `fast` mode, which may affect some global states or just not stable.
@@ -421,8 +422,7 @@ impl Fuzzer {
                 // update coverage if has any 'un-track' function
                 log!(trace, "has un-track function, try to find new blocks.");
                 let status = self.executor.execute_program(&p)?;
-                self.observer
-                    .update_summary(&mut fb_summary, status);
+                self.observer.update_summary(&mut fb_summary, status);
                 let new_edges_all = self.observer.has_new_path(status)?;
                 self.observer.merge_coverage(&new_edges_all, status);
             }
@@ -452,6 +452,11 @@ impl Fuzzer {
     ) -> eyre::Result<bool> {
         if status.is_abort() {
             self.found_abort = true;
+        }
+        self.fail_cnt += 1;
+        if status.is_timeout() {
+            // do not tolerate timeout
+            self.fail_cnt += 5;
         }
         let mut fail_at = self.observer.feedback.last_stmt_index();
         let mut assert_failure = false;
