@@ -1,10 +1,10 @@
 # Hopper
 
-Hopper is an tool for generating fuzzing test cases for libraries automatically using **interpretative fuzzing**. It transforms the problem of library fuzzing into the problem of interpreter fuzzing, enabling exploration of a vast range of API usages for library fuzzing out of the box.
+Hopper is a tool for generating fuzzing test cases for libraries automatically using **interpretative fuzzing**. It transforms the problem of library fuzzing into the problem of interpreter fuzzing, enabling exploration of a vast range of API usages for library fuzzing out of the box.
 Some key features of Hopper include:
 - Interpretative API invoking without any fuzz driver. 
 - Type-aware mutation for arguments.
-- Automatic intra- and inter-API constraints leanring.
+- Automatic intra- and inter-API constraints learning.
 - Binary instrumentation support.
 
 To learn more about Hopper, check out our [paper](https://arxiv.org/pdf/2309.03496) at CCS '23.
@@ -41,19 +41,19 @@ You may wrap the header file with the missing definitions.
 Hopper uses [E9Patch](https://github.com/GJDuck/e9patch) to instrument binaries by default. Optionally, you can use [LLVM](./hopper-instrument/llvm-mode/) for source code instrumentation.
 
 After running `compile`, you will find that it generates the following files in the output directory:
-- `bin/hopper-fuzzer`:  generates inputs, maintatins states, and use `harness` to excuted the inputs.
+- `bin/hopper-fuzzer`:  generates inputs, maintains states, and uses `harness` to excuted the inputs.
 - `bin/hopper-harness`:  executes the inputs.
 - `bin/hopper-translate`:  translates inputs to C source code.
 - `bin/hopper-generator`: replays the generate process.
 - `bin/hopper-sanitizer`: sanitize and minimize crashes.
 
 #### Header files
-- If there are multiple header files, you can crate a new header file, and *include* all of them.
-- If header files are compiled depending on specific envoironment variables. You can set it by : `BINDGEN_EXTRA_CLANG_ARGS`.
+- If there are multiple header files, you can create a new header file, and *include* all of them.
+- If header files are compiled depending on specific environment variables. You can set it by : `BINDGEN_EXTRA_CLANG_ARGS`.
 - If the header file includes API functions that you do not want to test, use `--func-pattern` to filter them while running the fuzzer.
 
 #### Environment variable for compiling
-- `HOPPER_MAP_SIZE_POW2`: controls the size of coverage path. The defult value is 16, and it should be in the range of [16, 20]. e.g. `HOPPER_MAP_SIZE_POW2=18`.
+- `HOPPER_MAP_SIZE_POW2`: controls the size of coverage path. The default value is 16, and it should be in the range of [16, 20]. e.g. `HOPPER_MAP_SIZE_POW2=18`.
 - `HOPPER_INST_RATIO`: controls how likely a block will be chosen for instrumentation. The default value is 100, and it should be in the range of (0, 100]. e.g. `HOPPER_INST_RATIO=75`.
 - `HOPPER_INCLUDE_SEARCH_PATH`: includes the search path of file in header files. e.g. `HOPPER_INCLUDE_SEARCH_PATH=../`.
 - `HOPPER_FUNC_BLACKLIST`: includes function blacklists that hopper won't compile. `bindgen` will not generate code for the functions. e.g. `HOPPER_FUNC_BLACKLIST=f1,f2`.
@@ -64,7 +64,7 @@ After running `compile`, you will find that it generates the following files in 
 #### Tips
 - You can set the arguments and environment variables for compiling and running in a configuration file named `hopper.config`, see `examples/*` for details.
 
-- Reduce density: If density is larger than 20%, the IDs of edges is likely to have hash-collisions. We can a) increase  `HOPPER_MAP_SIZE_POW2` or b) reduce `HOPPER_INST_RATIO`.
+- Reduce density: If density is larger than 20%, the IDs of edges are likely to have hash-collisions. We can a) increase  `HOPPER_MAP_SIZE_POW2` or b) reduce `HOPPER_INST_RATIO`.
 
 - Multiple libraries: (1) merge the archives into one shared library, e.g. `gcc -shared -o c.so -Wl,--whole-archive a.a b.a -Wl,--no-whole-archive`; (2) pass all of them into hopper compiler by `--library a.so b.so`.
 
@@ -88,7 +88,7 @@ After running `fuzz`, it will generate following directories.
 - `HOPPER_SEED_DIR`: provides seeds for byte-like arguments (default: output/seeds if t exists).
 - `HOPPER_DICT`: provides dictionary for byte-like arguments. The grammar is the same as AFL's.
 - `HOPPER_API_INSENSITIVE_COV`: disables API-sensitive branch counting.
-- `HOPPER_FAST_EXECUTE_LOOP`:  number of programs excuted (in a loop) for each fork, set as 0 or 1 to break the loop. e.g. `HOPPER_FAST_EXECUTE_LOOP=10`.
+- `HOPPER_FAST_EXECUTE_LOOP`:  number of programs executed (in a loop) for each fork, set as 0 or 1 to break the loop. e.g. `HOPPER_FAST_EXECUTE_LOOP=10`.
 
 #### System configuration
 Set system core dumps as AFL (on the host if you execute Hopper in a Docker container).
@@ -97,7 +97,7 @@ echo core | sudo tee /proc/sys/kernel/core_pattern
 ```
 
 ### Function pattern 
-Hopper generates inputs for all functions that appear in both headers and libiries by default. However, there are two ways to filter functions in Hopper: exlucding functions or including functions. This way, it can be focus on intersting functions.
+Hopper generates inputs for all functions that appear in both headers and libraries by default. However, there are two ways to filter functions in Hopper: excluding functions or including functions. This way, it can be focus on interesting functions.
 
 #### `--func-pattern`
 ```
@@ -105,7 +105,7 @@ hopper fuzz output --func-pattern @cJSON_parse,!cJSON_InitHook,cJSON_*
 ```
   - The pattern can be a function name, e.g. `cJSON_parse`, or a simple pattern, e.g. `cJSON_*`. 
   - If you have multiple patterns, use `,` to join them, e.g `cJSON_*,HTTP_*`. 
-  - You can use `@` prefix to limit the fuzzer to only fuzz specific function, while the others can be candidates that provding values for fields or arguments, e.g. `@cJSON_parse,cJSON_*`.
+  - You can use `@` prefix to limit the fuzzer to only fuzz specific function, while the others can be candidates that provide values for fields or arguments, e.g. `@cJSON_parse,cJSON_*`.
   - `!` is used as prefix for excluding some specific functions, e.g `!cJSON_InitHook,cJSON_*`.
 
 #### `--custom-rules`
@@ -119,9 +119,9 @@ func_include cJSON_*,HTTP_*
 ```
 
 ### Constraints
-Hopper infers both intra- and inter-API constraints to invoking the APIs correctlly.  
+Hopper infers both intra- and inter-API constraints to invoking the APIs correctly.  
 The constraints are written in `output/misc/constraint.config`. You can remove the file to reset the constraints.
-Addtionally, users can defined a file that describe custom constraints for API invocations, which passed by `--custom-rules`. The constraints will override the infered ones.
+Additionally, users can define a file that describes custom constraints for API invocations, which is passed by `--custom-rules`. The constraints will override the inferred ones.
 ```java
 // hopper fuzz output --custom-rules path-to-file
 // Grammar: 
@@ -151,7 +151,7 @@ func test_magic[$0] = "magic"
 func test_path[$0] = $read_file
 // Argument should be use the value of specific function's return
 func test_use[$0] = $ret_from(test_create)
-// Argument should be specific type for void pointer. The type should start with *mut or *cosnt.
+// Argument should be specific type for void pointer. The type should start with *mut or *const.
 func test_void[$0] = $cast_from(*mut u8)
 // The array suppose has a minimal array length
 func test_void[$0][&] = $arr_len(256)
@@ -178,7 +178,7 @@ type Partial = $init_with(test_init, 0)
 ctx test_use[$0] <- test_init
 // Add implicit context
 ctx test_use[*] <- test_init
-// Add optional context that prefered to use
+// Add optional context that preferred to use
 ctx test_use[$0] <- test_init ?
 // Add forbidden context
 ctx test_use[$0] <- ! test_init
@@ -193,7 +193,7 @@ assert test_non_zero != 0
 ```
 
 ### Seeds for bytes arguments
-If there is a `seeds` direcotry (Set by `HOPPER_SEED_DIR`), Hopper will try to read files inside it and uses them as the seeds for bytes arguments (e.g. char*). Also, you can indicate the seeds for specific argument via its parameter names, e.g make the subdirectory as `@buf` for parameter whose name is `buf`.
+If there is a `seeds` directory (Set by `HOPPER_SEED_DIR`), Hopper will try to read files inside it and uses them as the seeds for bytes arguments (e.g. char*). Also, you can indicate the seeds for specific argument via its parameter names, e.g make the subdirectory as `@buf` for parameter whose name is `buf`.
 
 ### Logging
 Hopper uses Rust's log crate to print log information. The default log level is `INFO`. If you want to print all logging information (`DEBUG` and `TRACE`), you can set the environment `LOG_TYPE` during running Hopper, e.g. `LOG_TYPE=trace ./hopper`.
@@ -202,7 +202,7 @@ The detailed logging will be written at `output/fuzzer_r*.log` and `output/harne
 ### Reproduce execution
 Hopper can reproduce the execution of programs at output directories.
 
-- `hopper-harness` can parse and explain the inputs by Hopper's runtime. It wiil print the internal states during execution in detail.
+- `hopper-harness` can parse and explain the inputs by Hopper's runtime. It will print the internal states during execution in detail.
 ```
 ./bin/hopper-harness ./queue/id_000000
 ```
@@ -238,7 +238,7 @@ RUST_BACKTRACE=1 cargo test -- --nocapture
 - [Examples](./examples/)
 
 ## Evaluating results via source-based code coverage
-- Compile the libraies' source code with [LLVM source-based code sanitizer](https://clang.llvm.org/docs/SourceBasedCodeCoverage.html). You should set the compiling flags, e.g. 
+- Compile the libraries' source code with [LLVM source-based code sanitizer](https://clang.llvm.org/docs/SourceBasedCodeCoverage.html). You should set the compiling flags, e.g. 
 
 ```
 export CFLAGS="${CFLAGS:-} -fprofile-instr-generate -fcoverage-mapping -gline-tables-only -g"
@@ -261,8 +261,8 @@ We have listed some tasks in [Roadmap](https://github.com/FuzzAnything/hopper/di
 If you are interested, please feel free to discuss with us and contribute your code.
 
 ### Coding
-- *Zero* `cargo check` warnning
-- *Zero* `cargo clippy` warnning
+- *Zero* `cargo check` warning
+- *Zero* `cargo clippy` warning
 - *Zero* `FAILED` in `cargo test`
 - *Try* to write tests for your code
 
