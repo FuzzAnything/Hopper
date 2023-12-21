@@ -690,12 +690,14 @@ fn infer_factors(
     let _ = crate::inspect_function_constraint_mut_with(f_name, |fc| {
         let mut factors = vec![];
         for (key_arg_pos, cs) in fc.arg_constraints.iter_mut().enumerate() {
+            // crate::log_trace!("dst: {arr_arg_pos} - {arr_fields}");
             for c in &mut cs.list {
                 let val = match &mut c.constraint {
                     Constraint::SetVal { val } => val,
                     Constraint::Range { min: _, max } => max,
                     _ => continue,
                 };
+                crate::log_trace!("len val: {val:?}");
                 if let IrEntry::Length {
                     arg_pos,
                     fields,

@@ -28,13 +28,13 @@ impl FuzzProgram {
             .use_index();
         loop {
             let cur_stmt = &self.stmts[index.get()].stmt;
-            eyre::ensure!(index.get() < 512, "index is too large");
+            // eyre::ensure!(index.get() < 512, "index is too large");
             match cur_stmt {
                 FuzzStmt::Call(call) => {
                     let call_name = call.fg.f_name;
                     let call_args = call.args.clone();
                     let existing_ctxs = call.contexts.clone();
-                    let is_context = call.is_implicit() || call.is_relative();
+                    // let is_context = call.is_implicit() || call.is_relative();
                     crate::log!(
                         trace,
                         "refine func constraints: {call_name} at {}",
@@ -58,13 +58,17 @@ impl FuzzProgram {
                         for ctx_rule in &fc.contexts {
                             self.refine_contexts(&index, ctx_rule, &call_args, &existing_ctxs)?;
                         }
+                        // FIXME: it's bad, which may ruin the program. Something like assert may depend on it.
+                        /*
                         if fc.insert_fail && is_context {
+                            crate::log!(trace, "insert {} fail and removed", call_name);
                             let cur = index.get();
                             self.delete_stmt(cur);
                             // switch to next one, since current index is deleted.
                             index = self.stmts[cur].index.use_index();
                             self.check_ref_use()?;
                         }
+                        */
                         let mut operators = self.refine_length_factors(fc, &call_args)?;
                         if !operators.is_empty() {
                             ops.append(&mut operators);
@@ -119,6 +123,10 @@ impl FuzzProgram {
             }
             if index.get() == 0 {
                 break;
+            }
+            if index.get() >= self.stmts.len() {
+                crate::log_error!("program: {}", self);
+                eyre::bail!("the index {} is out of range!", index.get());
             }
             index = self.stmts[index.get() - 1].index.use_index();
         }
@@ -211,6 +219,18 @@ impl FuzzProgram {
                             max: IrEntry::Max(0),
                         },
                     ),
+                    Constraint::CastFrom { cast_type }
+                        if (self.parent.is_none() || self.is_loc_mutated(&loc))
+                            && self.is_loc_null(&loc) =>
+                    {
+                        MutateOperator::new(
+                            loc,
+                            MutateOperation::PointerCast {
+                                cast_type: cast_type.to_string(),
+                                rng_state: rng::gen_rng_state(),
+                            },
+                        )
+                    }
                     Constraint::UseUnionMember { member } => MutateOperator::new(
                         loc,
                         MutateOperation::UnionUse {
@@ -418,6 +438,7 @@ impl FuzzProgram {
         existing_ctxs: &[StmtIndex],
     ) -> eyre::Result<()> {
         if ctx_rule.is_forbidden() {
+            crate::log!(trace, "refine context: {ctx_rule:?}");
             if let Some(arg_pos) = ctx_rule.related_arg_pos {
                 let arg_stmt = &call_args[arg_pos];
                 for is in &self.stmts {

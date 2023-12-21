@@ -172,6 +172,7 @@ impl InstrList {
                 if let Some(FieldKey::Index(_)) = loc.fields.list.last() {
                     loc.fields.list.pop();
                 }
+                crate::log_c!(trace, "find loc: {loc:?}");
                 let record = MemRecord {
                     id,
                     size,
@@ -183,7 +184,7 @@ impl InstrList {
                 mem_records.push(record);
             }
         }
-        crate::log_c!(trace, "finish associate mem");
+        crate::log_c!(trace, "finish associate mem, len: {}", mem_records.len());
         mem_records
     }
 

@@ -243,3 +243,35 @@ void test_custom_cast2(int magic, void *arg) {
     }
   }
 }
+
+void test_infer_cast(void *p) {
+  printf("ptr %p\n", p);
+  if (p != NULL) {
+    char p1 = ((char*)p)[0];
+    char p2 = ((char*)p)[1];
+    if (p1 ==0x12 && p2 != 0 && p2 == 0x34) {
+      abort();
+    }
+  }
+}
+
+void test_infer_cast2(void **p) {
+  printf("ptr %p\n", p);
+  if (p != NULL && *p != NULL) {
+    char p1 = ((char*)*p)[0];
+    char p2 = ((char*)*p)[1];
+    if (p1 ==0x12 && p2 != 0 && p2 == 0x34) {
+      abort();
+    }
+  }
+}
+
+void test_infer_cast3(PtrWrap p) {
+  if (p.ptr != NULL) {
+    char p1 = ((char*)p.ptr)[0];
+    char p2 = ((char*)p.ptr)[1];
+    if (p1 ==0x12 && p2 != 0 && p2 == 0x34) {
+      abort();
+    }
+  }
+}

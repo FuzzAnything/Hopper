@@ -117,8 +117,7 @@ impl CmpOperation {
     }
 
     pub fn log_cmp(&self) {
-        crate::log!(
-            info,
+        println!(
             "CMP id: {}, ty: {}, size: {}, stmt: {}, operands: {:?}, {:?}, state: {:#04x}",
             { self.id },
             { self.ty },

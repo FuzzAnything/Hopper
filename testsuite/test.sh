@@ -110,8 +110,8 @@ hopper_test() {
     info "infer: $INFER"
     export TESTSUITE_INFER="${INFER}"
     ${HOPPER} fuzz ${DIR}/output \
-        --mem-limit=10000 \
         --custom-rules ${DIR}/custom.rule \
+        --mem-limit=30000 \
         --func-pattern @${TEST_FN},$DEP
     ret_code=$?
     echo "ret_code : ${ret_code}"

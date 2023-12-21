@@ -136,6 +136,11 @@ pub enum MutateOperation {
     PointerFile {
         read: bool,
     },
+    // Cast pointer
+    PointerCast {
+        cast_type: String,
+        rng_state: RngState,
+    },
     /// Make int to be a file descriptor
     FdFile,
     /// Generate and init opaque pointer

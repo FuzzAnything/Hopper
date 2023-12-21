@@ -156,8 +156,10 @@ impl Fuzzer {
     fn infer_by_review_program(&mut self, program: &FuzzProgram) -> eyre::Result<StatusType> {
         let mut p = program.clone();
         // avoid id collision in review
-        p.id = 1000000;
+        p.id = config::REVIEW_ID_BASE + rng::gen_range(1..config::REVIEW_ID_BASE);
         let review_status = self.executor.review_program(&p)?;
+        // println!("mem_len: {}", self.observer.feedback.instrs.mem_len());
+        // self.observer.feedback.instrs.mem_iter().for_each(|m| println!("mem: {m:?}"));
         let review = crate::feedback::ReviewResult::read_from_file(&mut p)?;
         review.add_into_constraints(&p)?;
         Ok(review_status)
@@ -193,10 +195,7 @@ impl Fuzzer {
         // ----------------------------------------
         // 0. Infer void pointer: try to cast it to char*
         // ----------------------------------------
-        // only infer void pointer arguments
-        if prefix.is_empty() {
-            self.pilot_infer_void_type(program, stmt_index, call_stmt, arg_pos)?;
-        }
+        self.pilot_infer_void_type(program, stmt_index, load_state, call_stmt, arg_pos, &prefix)?;
         // ----------------------------------------
         // 1. Infer pointer : set the pointer to NULL
         // ----------------------------------------
@@ -273,6 +272,7 @@ impl Fuzzer {
     pub fn seed_infer(&mut self, program: &FuzzProgram) -> eyre::Result<Vec<ConstraintSig>> {
         let mut new_constraints = vec![];
         crate::log!(trace, "infer new seed");
+        let _ = self.infer_by_review_program(program)?;
         if let Some(c) = self.infer_file_fd(program)? {
             new_constraints.push(c);
         }

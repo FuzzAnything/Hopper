@@ -15,9 +15,8 @@ pub fn mutate_pointer_location(
     keys: &[FieldKey],
 ) -> eyre::Result<MutateOperation> {
     let state = root_state.get_child_mut_by_fields(keys)?;
-    let is_root = keys.is_empty();
     let depth = program.get_stub_stmt_depth()?;
-    let op = set_pointer_location(program, state, is_root, depth, false)?;
+    let op = set_pointer_location(program, state, depth, false)?;
     Ok(op)
 }
 
@@ -33,8 +32,7 @@ pub fn generate_pointer_location(
     }
     if let Some(ps) = state.pointer.as_ref() {
         if ps.pointer_location.is_null() {
-            let is_root = state.parent.is_none();
-            let _ = set_pointer_location(program, state, is_root, depth, true)?;
+            let _ = set_pointer_location(program, state, depth, true)?;
         }
     }
     if state.children.len() <= crate::config::MAX_VEC_LEN {
@@ -80,24 +78,37 @@ pub fn mutate_pointer_location_by_op(
             state.get_pointer_mut()?.pointer_location = loc;
         }
         MutateOperation::PointerGen { rng_state } => {
-            let ident = state.key.as_str()?;
-            let type_name = &state.pointer.as_mut().context("has ptr")?.pointer_type;
-            let is_opaque = utils::is_opaque_type(type_name);
-            let depth = program.get_stub_stmt_depth()?;
             let _tmp_rng = rng::TempRngGuard::temp_use(rng_state);
-            let loc = create_load_stmt_for_ptr(program, type_name, ident, is_opaque, depth)?;
+            let loc = create_load_stmt_for_ptr_wrap(program, state)?;
             if loc.is_null() {
                 set_incomplete_gen(true);
             }
             state.get_pointer_mut()?.pointer_location = loc;
         }
         MutateOperation::PointerGenChar => {
-            let ident = state.key.as_str()?;
-            let type_name = "i8";
-            state.pointer.as_mut().context("has ptr")?.pointer_type = type_name;
-            let depth = program.get_stub_stmt_depth()?;
-            let loc = create_load_stmt_for_ptr(program, type_name, ident, false, depth)?;
+            state.pointer.as_mut().context("has ptr")?.pointer_type = "i8";
+            let loc = create_load_stmt_for_ptr_wrap(program, state)?;
             state.get_pointer_mut()?.pointer_location = loc;
+        }
+        MutateOperation::PointerCast {
+            cast_type,
+            rng_state,
+        } => {
+            if !state.get_pointer()?.pointer_location.is_null() {
+                return Ok(());
+            }
+            let depth = program.get_stub_stmt_depth()?;
+            let _tmp_rng = rng::TempRngGuard::temp_use(rng_state);
+            let use_null = use_null_or_not(program, state.parent.is_none(), depth, false);
+            if use_null {
+                crate::log_trace!("use null pointer");
+                return Ok(());
+            }
+            if let Some(ty) = utils::get_pointer_inner(cast_type) {
+                state.pointer.as_mut().context("has ptr")?.pointer_type = utils::get_static_ty(ty);
+                let loc = create_load_stmt_for_ptr_wrap(program, state)?;
+                state.get_pointer_mut()?.pointer_location = loc;
+            };
         }
         MutateOperation::InitOpaque { call_i } => {
             let depth = program.get_stub_stmt_depth()?;
@@ -151,35 +162,29 @@ pub fn mutate_pointer_location_by_op(
                 false
             });
 
-            fn create_new_vec(
-                program: &mut FuzzProgram,
-                state: &mut ObjectState,
-            ) -> eyre::Result<bool> {
-                let ident = state.key.as_str()?;
-                let type_name = &state.pointer.as_mut().context("has ptr")?.pointer_type;
-                let depth = program.get_stub_stmt_depth()?;
-                let is_opaque = utils::is_opaque_type(type_name);
-                if is_opaque {
-                    return Ok(false);
-                }
-                let loc = create_load_stmt_for_ptr(program, type_name, ident, is_opaque, depth)?;
-                state.get_pointer_mut()?.pointer_location = loc;
-                Ok(true)
-            }
             // If the vec/buffer is loaded from a call statement,
             // we replace it with a load statement that is adhere to the constriant.
-            if (is_null || is_returned) && !create_new_vec(program, state)? {
-                return Ok(());
+            if is_null || is_returned {
+                let loc: Location = create_load_stmt_for_ptr_wrap(program, state)?;
+                if loc.is_null() {
+                    return Ok(());
+                }
+                state.get_pointer_mut()?.pointer_location = loc;
             }
             let loc = &state.get_pointer()?.pointer_location;
             if let FuzzStmt::Load(load) = &mut program.stmts[loc.get_index()?.get()].stmt {
                 // if the pointee is not a vector, we create a vector for it.
                 if utils::is_vec_type(load.value.type_name()) {
                     load.value.mutate_by_op(&mut load.state, &[], op)?;
-                } else if create_new_vec(program, state)? {
-                    let loc = &state.get_pointer()?.pointer_location;
-                    if let FuzzStmt::Load(load) = &mut program.stmts[loc.get_index()?.get()].stmt {
-                        load.value.mutate_by_op(&mut load.state, &[], op)?;
+                } else {
+                    let loc: Location = create_load_stmt_for_ptr_wrap(program, state)?;
+                    if !loc.is_null() {
+                        if let FuzzStmt::Load(load) =
+                            &mut program.stmts[loc.get_index()?.get()].stmt
+                        {
+                            load.value.mutate_by_op(&mut load.state, &[], op)?;
+                        }
+                        state.get_pointer_mut()?.pointer_location = loc;
                     }
                 }
             }
@@ -307,26 +312,9 @@ impl<T> ObjGenerate for FuzzFrozenPointer<T> {
     }
 }
 
-/// Find a new location for pointers
-fn set_pointer_location(
-    program: &mut FuzzProgram,
-    state: &mut ObjectState,
-    is_root: bool,
-    depth: usize,
-    is_generate: bool,
-) -> eyre::Result<MutateOperation> {
-    eyre::ensure!(depth < 50, "the program is too complex with huge depth!");
-    let ident = state.key.as_str()?;
-    let parent_ty_holder = state.get_parent().map(|p| p.ty);
-    let ps = state.pointer.as_mut().context("pointer has ps")?;
-    let type_name = ps.pointer_type;
-    let is_opaque = utils::is_opaque_type(type_name);
-    // once the pointer is mutated, stub is removed
-    ps.stub = false;
-
-    // 1. the pointer may be null
+fn use_null_or_not(program: &FuzzProgram, is_root: bool, depth: usize, is_generate: bool) -> bool {
     // avoid reach deep depth
-    let use_null = if flag::is_pilot_det() {
+    if flag::is_pilot_det() {
         !is_root
             && (depth >= config::PILOT_MAX_DEPTH || program.stmts.len() > config::MAX_STMTS_LEN)
     } else if depth > config::MAX_DEPTH || program.stmts.len() > config::MAX_STMTS_LEN {
@@ -337,12 +325,30 @@ fn set_pointer_location(
         rng::coin()
     } else {
         rng::likely()
-    };
+    }
+}
+
+/// Find a new location for pointers
+fn set_pointer_location(
+    program: &mut FuzzProgram,
+    state: &mut ObjectState,
+    depth: usize,
+    is_generate: bool,
+) -> eyre::Result<MutateOperation> {
+    eyre::ensure!(depth < 50, "the program is too complex with huge depth!");
+    let ident = state.key.as_str()?;
+    let is_root = state.parent.is_none();
+    let parent_ty_holder = state.get_parent().map(|p| p.ty);
+    let ps = state.pointer.as_mut().context("pointer has ps")?;
+    let type_name = ps.pointer_type;
+    let is_opaque = utils::is_opaque_type(type_name);
+    // once the pointer is mutated, stub is removed
+    ps.stub = false;
+
+    // 1. the pointer may be null
+    let use_null = use_null_or_not(program, is_root, depth, is_generate);
     if use_null {
-        crate::log!(
-            trace,
-            "`{type_name}*`: use null pointer, is_root: {is_root}, depth: {depth}"
-        );
+        crate::log_trace!("`{type_name}*`: use null pointer, depth: {depth}");
         ps.pointer_location = Location::null();
         return Ok(MutateOperation::PointerNull);
     }
@@ -391,6 +397,18 @@ fn set_pointer_location(
 }
 
 /// Insert a new load statement, and return its location
+fn create_load_stmt_for_ptr_wrap(
+    program: &mut FuzzProgram,
+    state: &ObjectState,
+) -> eyre::Result<Location> {
+    let ident = state.key.as_str()?;
+    let depth = program.get_stub_stmt_depth()?;
+    let type_name = state.pointer.as_ref().context("has ptr")?.pointer_type;
+    let is_opaque = utils::is_opaque_type(type_name);
+    create_load_stmt_for_ptr(program, type_name, ident, is_opaque, depth)
+}
+
+/// Insert a new load statement, and return its location
 fn create_load_stmt_for_ptr(
     program: &mut FuzzProgram,
     type_name: &str,
@@ -398,6 +416,7 @@ fn create_load_stmt_for_ptr(
     is_opaque: bool,
     depth: usize,
 ) -> eyre::Result<Location> {
+    crate::log_trace!("create load for type: {type_name}");
     let load_stmt = if is_opaque {
         // do not mutate the opaque struct
         // LoadStmt::generate_constant(type_name, ident)?
@@ -521,6 +540,7 @@ fn init_opaque_pointer(
 
     if let Some((fg, arg_pos)) = rng::choose_iter(candidates) {
         let f_name = fg.f_name;
+        crate::log_trace!("choose {f_name} for init opaque pointer");
         if parent_type.is_none() {
             let mut init_call =
                 CallStmt::generate_new(program, CallStmt::RELATIVE, f_name, depth + 1)?;
@@ -592,7 +612,8 @@ fn init_opaque_pointer(
 fn find_init_arg_pos(fg: &FnGadget, type_name: &str, alias_type_name: &str) -> Option<usize> {
     crate::log!(
         trace,
-        "find API for init arg pos for {type_name} / {alias_type_name}"
+        "find API {} for init arg pos for {type_name} / {alias_type_name}",
+        fg.f_name
     );
     fg.arg_types
         .iter()
@@ -640,7 +661,7 @@ fn get_alias_type_name<'a>(
         alias_ident.push('@');
         alias_ident.push_str(p_ty);
         alias_type_name =
-            global_gadgets::get_instance().get_field_alias_type(&alias_ident, ptr_type_name)
+            global_gadgets::get_instance().get_field_alias_type(&alias_ident, ptr_type_name);
     } else if let FuzzStmt::Call(call) = &program.stmts[call_i].stmt {
         for arg_pos in 0..call.fg.arg_idents.len() {
             if call.fg.arg_idents[arg_pos] == ident && call.fg.arg_types[arg_pos] == ptr_type_name {

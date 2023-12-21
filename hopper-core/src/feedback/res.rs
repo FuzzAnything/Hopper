@@ -76,7 +76,7 @@ impl ResourceStates {
         let stmt_index = instrs.last_stmt_index() as u16;
         for op in instrs.mem_iter() {
             if op.stmt_index == stmt_index {
-                crate::log!(trace, "mem op: {} ", op);
+                crate::log!(trace, "mem op: {op:?} ");
                 let ty = op.get_type();
                 // find out freed pointer
                 match ty {

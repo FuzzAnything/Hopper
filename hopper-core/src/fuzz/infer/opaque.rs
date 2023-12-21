@@ -5,50 +5,6 @@ use eyre::ContextCompat;
 use crate::{fuzz::*, fuzzer::*, log, runtime::*, utils, CrashSig};
 
 impl Fuzzer {
-    /// Infer if a void type can be casted as a char type or not.
-    pub fn pilot_infer_void_type(
-        &mut self,
-        program: &FuzzProgram,
-        stmt_index: &StmtIndex,
-        call_stmt: &CallStmt,
-        arg_pos: usize,
-    ) -> eyre::Result<()> {
-        let arg_type = call_stmt.fg.arg_types[arg_pos];
-        let alias_arg_type = call_stmt.fg.alias_arg_types[arg_pos];
-        if utils::is_void_pointer(arg_type)
-            && (alias_arg_type.contains("void") || alias_arg_type.contains("Void"))
-        {
-            log!(trace, "arg type: {arg_type} {alias_arg_type}");
-            let op = MutateOperator::new(
-                Location::stmt(stmt_index.use_index()),
-                MutateOperation::PointerGenChar,
-            );
-            let mut suc = true;
-            log!(trace, "try to infer void type");
-            // verify with some random data,
-            // and verify it in other execute paths later.
-            for _ in 0..100 {
-                let status = self.execute_with_op(program, &op, false)?;
-                if !status.is_normal() {
-                    log!(trace, "fail to infer void type, crash!");
-                    suc = false;
-                    break;
-                }
-            }
-            if suc {
-                add_function_arg_constraint(
-                    call_stmt.fg.f_name,
-                    arg_pos,
-                    Constraint::CastFrom {
-                        cast_type: utils::mut_pointer_type("i8"),
-                    },
-                    "try to assgin cast",
-                )?;
-            }
-        }
-        Ok(())
-    }
-
     /// If we update a call's return fails, we assume the return's type is opaque that can not be mutated.
     pub fn infer_opaque_if_update_fail(
         &mut self,

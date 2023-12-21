@@ -43,7 +43,7 @@ impl FuzzProgram {
         if let Err(err) = ret {
             crate::log!(trace, "p: {}", self.serialize().unwrap());
             crate::log!(trace, "stmt: {}", stmt.serialize().unwrap());
-            crate::log!(trace, "fail to mutate by op, op: {:?}, err: {:?}", op, err);
+            crate::log!(trace, "fail to mutate by op, op: {}, err: {:?}", op, err);
         }
         {
             let index = self.withdraw_stmt(stmt)?;

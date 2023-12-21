@@ -242,7 +242,8 @@ pub fn find_location_at_ptr(
                 if let Some(ret) = &call.ret {
                     let layout = ret.get_layout(false);
                     // crate::log!(trace, "layout: {:?}", layout);
-                    if let Some(fields) = layout.find_ptr(ptr, resource_states) {
+                    if let Some(mut fields) = layout.find_ptr(ptr, resource_states) {
+                        let _ = fields.strip_pointer_prefix();
                         return Some(Location::new(index.use_index(), fields));
                     }
                 }

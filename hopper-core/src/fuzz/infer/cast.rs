@@ -12,9 +12,64 @@
 //! the void pointer may be interpreted as a structure containing pointers.
 //! Thus, We remove the CAST constraints with char* type.
 
-use crate::{fuzz::*, fuzzer::*, runtime::*, CrashSig};
+use crate::{fuzz::*, fuzzer::*, log, runtime::*, utils, CrashSig};
 
 impl Fuzzer {
+    /// Infer if a void type can be casted as a char type or not.
+    pub fn pilot_infer_void_type(
+        &mut self,
+        program: &FuzzProgram,
+        stmt_index: &StmtIndex,
+        load_state: &ObjectState,
+        call_stmt: &CallStmt,
+        arg_pos: usize,
+        prefix: &LocFields,
+    ) -> eyre::Result<()> {
+        // let arg_type = call_stmt.fg.arg_types[arg_pos];
+        // let alias_arg_type = call_stmt.fg.alias_arg_types[arg_pos];
+        // let is_void_pointer = utils::is_void_pointer(arg_type);
+        let null_fields =
+            load_state.find_fields_with(|s| s.is_null() && utils::is_void_pointer(s.ty), false);
+        for f in null_fields {
+            log!(
+                trace,
+                "try infer void type at {stmt_index} {f}, ty: {}",
+                load_state.ty
+            );
+            // (alias_type.contains("void") || alias_type.contains("Void"))
+            // log!(trace, "infer void type at {stmt_index}");
+            let op = MutateOperator::new(
+                Location::new(stmt_index.use_index(), f.clone()),
+                MutateOperation::PointerGenChar,
+            );
+            let mut suc = true;
+            log!(trace, "try to infer void type");
+            // verify with some random data,
+            // and verify it in other execute paths later.
+            for _ in 0..100 {
+                let status = self.execute_with_op(program, &op, false)?;
+                if !status.is_normal() {
+                    log!(trace, "fail to infer void type, crash!");
+                    suc = false;
+                    break;
+                }
+            }
+            if suc {
+                let full_f = prefix.with_suffix(f);
+                add_function_constraint(
+                    call_stmt.fg.f_name,
+                    arg_pos,
+                    full_f,
+                    Constraint::CastFrom {
+                        cast_type: utils::mut_pointer_type("i8"),
+                    },
+                    "try to assgin cast",
+                )?;
+            }
+        }
+        Ok(())
+    }
+
     /// Infer if the void type is casted to a concrete type that contain pointers.
     /// If so, we can't use a huge byte array to interpret the void object.
     pub fn infer_void_cast(

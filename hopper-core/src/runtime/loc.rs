@@ -303,7 +303,7 @@ impl LocFields {
         full
     }
 
-    /// Strip pointer field if has
+    /// Strip pointer field suffix if has
     pub fn strip_pointer_suffix(&mut self) -> bool {
         if self.list.last() == Some(&FieldKey::Pointer) {
             self.pop();
@@ -312,6 +312,17 @@ impl LocFields {
             false
         }
     }
+
+     /// Strip pointer field prefix if has
+     pub fn strip_pointer_prefix(&mut self) -> bool {
+        if self.list.first() == Some(&FieldKey::Pointer) {
+            self.pop();
+            true
+        } else {
+            false
+        }
+    }
+
     /// Strip index field after pointer field if has
     pub fn strip_index_suffix(&mut self) -> bool {
         if self

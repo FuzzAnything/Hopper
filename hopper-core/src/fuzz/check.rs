@@ -82,9 +82,9 @@ impl FuzzProgram {
                 _ => {}
             }
         }
-        log!(trace, "check ref done");
         self.eliminate_invalidatd_operators();
         self.eliminate_invalidatd_contexts();
+        log!(trace, "check ref done: {} -> {}", len, self.stmts.len());
 
         Ok(())
     }
@@ -241,6 +241,12 @@ impl FuzzProgram {
             }
         }
         false
+    }
+
+    /// Check if the loc is mutated
+    pub fn is_loc_mutated(&self, loc: &Location) -> bool {
+        let wl = loc.to_weak_loc();
+        self.ops.iter().any(|l| l.key == wl)
     }
 }
 

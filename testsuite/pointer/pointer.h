@@ -93,3 +93,18 @@ void test_custom_cast(void *p);
 // void is cast to a type that contains pointer
 void test_custom_cast2(int magic, void* arg);
 
+// abort
+// infer: @[$0] = $cast_from(*mut i8)
+void test_infer_cast(void *p);
+
+// abort
+// infer: @[$0][&.$0] = $cast_from(*mut i8)
+void test_infer_cast2(void **p);
+
+typedef struct PtrWrap {
+  void* ptr;
+} PtrWrap;
+
+// abort
+// infer: @[$0][ptr] = $cast_from(*mut i8)
+void test_infer_cast3(PtrWrap p);

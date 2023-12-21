@@ -16,7 +16,8 @@ int __hopper_open(const char* pathname, int flags, ...) {
   // mot_t mode = va_arg (args, int);
   int fd = open(pathname, flags, ap);
   va_end(ap);
-  u_int32_t id = (uintptr_t)__builtin_return_address(0) % 0xFFFFFFFF;
+  // u_int32_t id = (uintptr_t)__builtin_return_address(0) % 0xFFFFFFFF;
+  u_int32_t id = 0;
   __hopper_open_hook(id, pathname, flags);
   return fd;
 }
@@ -27,7 +28,8 @@ int __hopper_open64(const char* pathname, int flags, ...) {
   // mot_t mode = va_arg (args, int);
   int fd = open64(pathname, flags, ap);
   va_end(ap);
-  u_int32_t id = (uintptr_t)__builtin_return_address(0) % 0xFFFFFFFFF;
+  // u_int32_t id = (uintptr_t)__builtin_return_address(0) % 0xFFFFFFFFF;
+  u_int32_t id = 0;
   __hopper_open_hook(id, pathname, flags);
   return fd;
 }
