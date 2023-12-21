@@ -49,7 +49,6 @@ impl ForkCli {
             envs.insert(config::API_INSENSITIVE_COV, context);
         }
         crate::log!(info, "Run harness: {:?}, envs: {:?}", &harness, envs);
-
         config::create_dir_in_output_if_not_exist(config::HARNESS_WORK_DIR)?;
         let tmout = config.timeout_limit + 5;
         Command::new(&harness)
@@ -63,6 +62,7 @@ impl ForkCli {
             .setsid()
             .spawn()
             .context("fail to spwan fork server in fuzzer")?;
+        crate::log!(info, "wait for acception..");
         // May block here if the client doesn't exist.
         let (socket, _) = listener.accept()?;
         socket.set_read_timeout(Some(std::time::Duration::from_secs(tmout)))?;
@@ -86,6 +86,7 @@ impl ForkCli {
                 .spawn()
                 .context("fail to spwan fork server in fuzzer")?;
             // May block here if the client doesn't exist.
+            crate::log!(info, "wait for acception..");
             let (fast_socket, _) = listener.accept()?;
             fast_socket.set_read_timeout(Some(std::time::Duration::from_secs(tmout)))?;
             fast_socket.set_write_timeout(Some(std::time::Duration::from_secs(tmout)))?;
