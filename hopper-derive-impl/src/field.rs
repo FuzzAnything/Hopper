@@ -47,7 +47,7 @@ impl<'a> FieldExt<'a> {
         };
         my_quote!({
             let state = state.add_child(#field_name, std::any::type_name::<#ty>()).last_child()?;
-            state.done_deterministic();
+            state.done_deterministic_itself();
             #ph
         })
     }
@@ -196,6 +196,14 @@ pub fn struct_object_mutate_body(fields: &[FieldExt], unit: bool, is_det: bool) 
     } else {
         my_quote!(#crate_path::choose_weighted_by_state(state))
     };
+    let ret_nop = if is_det {
+        my_quote!(
+            state.done_deterministic();
+            Ok(#crate_path::MutateOperator::nop())
+        )
+    } else {
+        my_quote!(Ok(#crate_path::MutateOperator::nop()))
+    };
     my_quote!(
         if let Some(index) = #choose_index {
             match index {
@@ -203,7 +211,7 @@ pub fn struct_object_mutate_body(fields: &[FieldExt], unit: bool, is_det: bool) 
                 _ => { unreachable!() },
             }
         } else {
-            Ok(#crate_path::MutateOperator::nop())
+            #ret_nop
         }
     )
 }

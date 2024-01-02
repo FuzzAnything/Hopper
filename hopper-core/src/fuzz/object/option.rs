@@ -20,7 +20,7 @@ fn generate_inner<T: ObjGenerate>(state: &mut ObjectState) -> eyre::Result<Optio
 
 impl<T: ObjGenerate> ObjGenerate for Option<T> {
     fn generate_new(state: &mut ObjectState) -> eyre::Result<Self> {
-        state.done_deterministic();
+        state.done_deterministic_itself();
         let sub_state = state
             .add_child(FieldKey::Option, std::any::type_name::<Option<T>>())
             .last_child_mut()?;

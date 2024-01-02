@@ -41,6 +41,7 @@ impl Depot {
             _ => 0,
         }
     }
+    
     /// Save new interesting input into depot.
     pub fn save(
         &mut self,

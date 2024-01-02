@@ -42,7 +42,9 @@ impl<T: ObjGenerate + ObjFuzzable + ObjectDeserialize, const N: usize> ObjGenera
 impl<T: ObjGenerate + ObjFuzzable> ObjGenerate for Vec<T> {
     /// Generate value for each element in the vector
     fn generate_new(state: &mut ObjectState) -> eyre::Result<Self> {
-        let len = if T::is_primitive() || (rng::rarely() && !flag::is_pilot_det()) {
+        let len = if T::is_primitive()
+            || (rng::rarely() && !flag::is_pilot_det() && std::mem::size_of::<T>() < 1024)
+        {
             rng::gen_range(config::MIN_VEC_LEN..=config::MAX_VEC_LEN)
         } else {
             1
@@ -116,7 +118,7 @@ impl<T: ObjFuzzable + ObjGenerate + ObjectDeserialize, const N: usize> ObjMutate
             let op = self[idx].det_mutate(state.get_child_mut(idx)?)?;
             add_arr_terminator(self);
             Ok(op)
-        } else if let Some(op) = call_det(self, state)? {
+        } else if let Some(op) = do_det(self, state)? {
             Ok(state.as_mutate_operator(op))
         } else {
             Ok(MutateOperator::nop())
@@ -187,8 +189,9 @@ impl<T: ObjFuzzable + ObjGenerate> ObjMutate for Vec<T> {
         crate::log!(trace, "det mut seq");
         remove_vec_teminator(self, state);
         let op = if let Some(idx) = state.get_deterministic_child_position() {
+            crate::log!(trace, "det mut index {idx}");
             self[idx].det_mutate(state.get_child_mut(idx)?)?
-        } else if let Some(det_op) = call_det(self, state)? {
+        } else if let Some(det_op) = do_det(self, state)? {
             // if state.children.len() < self.len() {
             //     state.mutate.borrow_mut().deterministic = true;
             // }

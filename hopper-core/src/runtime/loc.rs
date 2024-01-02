@@ -323,20 +323,6 @@ impl LocFields {
         }
     }
 
-    /// Strip index field after pointer field if has
-    pub fn strip_index_suffix(&mut self) -> bool {
-        if self
-            .list
-            .as_slice()
-            .ends_with(&[FieldKey::Pointer, FieldKey::Index(0)])
-        {
-            self.pop();
-            true
-        } else {
-            false
-        }
-    }
-
     /// Get a location for refining
     pub fn to_loc_for_refining(
         &self,

@@ -117,7 +117,7 @@ macro_rules! impl_int_mut {
         $(
             impl ObjMutate for $name {
                 fn det_mutate(&mut self, state: &mut ObjectState) -> eyre::Result<MutateOperator> {
-                    if let Some(op) = call_det(self, state)? {
+                    if let Some(op) = do_det(self, state)? {
                         return Ok(state.as_mutate_operator(op));
                     }
                     Ok(MutateOperator::nop())
@@ -282,7 +282,7 @@ macro_rules! impl_float_mut {
         $(
 impl ObjMutate for $name {
     fn det_mutate(&mut self,  state: &mut ObjectState) -> eyre::Result<MutateOperator> {
-        if let Some(op) = call_det(self, state)? {
+        if let Some(op) = do_det(self, state)? {
             return Ok(state.as_mutate_operator(op));
         }
         Ok(MutateOperator::nop())

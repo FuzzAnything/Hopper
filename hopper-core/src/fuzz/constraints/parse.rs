@@ -276,13 +276,7 @@ impl Constraint {
             de.eat_token("(")?;
             let ir_member = IrEntry::from_rule(de)?;
             de.eat_token(")")?;
-            if let IrEntry::Constant(len) = ir_member {
-                return Ok(Self::ArrayLength {
-                    len: len.try_into().unwrap(),
-                });
-            } else {
-                return Err(eyre::eyre!("Expect a length here."));
-            }
+            return Ok(Self::ArrayLength { len: ir_member });
         }
         if de.strip_token("$init_with") {
             de.eat_token("(")?;

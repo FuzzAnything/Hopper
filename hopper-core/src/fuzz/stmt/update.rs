@@ -33,7 +33,7 @@ pub fn append_update_stmt(
     for (i, ir) in call.ret_ir.iter().enumerate() {
         let ty_name = ir.value.type_name();
         let key = ir.fields.as_slice();
-        if utils::is_opaque_type(ty_name) || utils::is_opaque_vec(ty_name) {
+        if key.len() > 5 || utils::is_opaque_type(ty_name) || utils::is_opaque_vec(ty_name) {
             opeaque_prefix.push(key);
             continue;
         }

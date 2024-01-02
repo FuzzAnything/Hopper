@@ -135,12 +135,12 @@ pub fn cargo_install(
         }
         change_link_lib(
             library_file,
-            library,
+            &library,
             harness_bin.to_str().context("fail to convert as str")?,
         )?;
         change_link_lib(
             library_file,
-            library,
+            &library,
             fuzzer_bin.to_str().context("fail to convert as str")?,
         )?;
     }

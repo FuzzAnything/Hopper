@@ -22,6 +22,15 @@ int __hopper_open(const char* pathname, int flags, ...) {
   return fd;
 }
 
+void* __hopper_open_fn = __hopper_open;
+
+#ifdef _WIN64
+
+#elif _WIN32
+
+#elif __APPLE__
+
+#elif __linux
 int __hopper_open64(const char* pathname, int flags, ...) {
   va_list ap;
   va_start(ap, flags);
@@ -33,6 +42,5 @@ int __hopper_open64(const char* pathname, int flags, ...) {
   __hopper_open_hook(id, pathname, flags);
   return fd;
 }
-
-void* __hopper_open_fn = __hopper_open;
 void* __hopper_open64_fn = __hopper_open64;
+#endif

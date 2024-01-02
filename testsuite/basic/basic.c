@@ -29,6 +29,15 @@ void test_cmp_struct(struct CmpStruct p) {
   }
 }
 
+void test_cmp_struct2(struct CmpStruct *p) {
+  if (p == NULL) return;
+  if (p->x == 123345) {
+    if (p->y == 45677) {
+      abort();
+    }
+  }
+}
+
 void test_switch(int a, int b) {
   switch (a) {
     case 12312213:

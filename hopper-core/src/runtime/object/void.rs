@@ -43,7 +43,7 @@ macro_rules! impl_void {
                 state: &mut ObjectState,
             ) -> eyre::Result<Self> {
                 let _  = state.replace_weight(0);
-                state.done_deterministic();
+                state.done_deterministic_itself();
                 de.eat_token("void")?;
                 Ok(Self::default())
             }

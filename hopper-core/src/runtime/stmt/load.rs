@@ -35,6 +35,7 @@ impl StmtView for LoadStmt {
             self.value.type_name(),
             self.value.get_ptr_by_keys(&[])
         );
+        // self.state.show_tree(0);
         let size = self.value.get_length();
         let ptr = self.value.get_ptr_by_keys(&[])?;
         resource_states.insert_ptr_size(ptr, size);

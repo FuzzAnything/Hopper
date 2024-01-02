@@ -152,7 +152,8 @@ impl ObjectState {
     /// Replace weight with the new value
     pub fn replace_weight(&self, new_weight: usize) -> usize {
         if new_weight == 0 {
-            self.done_deterministic();
+            // crate::log!(trace, "replace {:?} weight to 0", self.key);
+            self.done_deterministic_itself();
         }
         let mut mutate = self.mutate.borrow_mut();
         let weight = mutate.get_weight();
