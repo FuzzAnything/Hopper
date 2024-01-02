@@ -16,7 +16,7 @@ void test_null_ptr(int, ArrayWrap *, int);
 void test_null_field(ArrayWrap arr);
 
 // abort
-// infer: @[$3][&] = $len($2)
+// infer: @[$3][&.$0] = $len($2)
 void test_buffer_len(int, int, unsigned char*, int*);
 
 // infer: @[$0][len] = $len([$0][name])
@@ -43,8 +43,13 @@ void test_buffer_len2(int, int, ArrayWrap*);
 void test_buffer_len3(char *arg1, unsigned int arg2);
 
 // abort
-// infer: @[$2] = $len($0), @[$1] = $arr_len($0)
+// infer: @[$2] = $len($0); @[$1] = $arr_len($len($0))
 void test_two_buffer_len(char* buf1, char* buf2, int len, int sw);
+
+// abort
+// infer: @[$2] = $len($0); @[$1][&.$0] = $len([$0][&.$0])
+// @[$1] = $arr_len($len($0)); 
+void test_two_buffer_len2(char** bufs, int* sizes, int nbufs, int sw);
 
 // abort
 // infer: @[$1] = $range(0, $len($0))

@@ -107,6 +107,7 @@ impl ObjectState {
         if child.is_private_field() || self.is_private_field() {
             child.mutate.borrow_mut().set_weight(0);
         }
+        // crate::log!(trace, "add child {:?}", child.key);
         self.children.push(child);
         self
     }
@@ -315,12 +316,13 @@ impl ObjectState {
     /// Mark current state no-deterministic , and check its parent's state,
     /// If all the children is no-deterministic, the parent become no-deter too.
     pub fn done_deterministic(&self) {
+        crate::log!(trace, "{:?} done det", self.key);
         self.done_deterministic_itself();
-        self.update_deterministic();
+        self.update_parent_deterministic();
     }
 
     /// Check parent's state of deterministic
-    pub fn update_deterministic(&self) {
+    pub fn update_parent_deterministic(&self) {
         let mut st = self;
         while let Some(p) = st.get_parent() {
             // parent may be vec/array/struct,
@@ -342,10 +344,10 @@ impl ObjectState {
     /// Mark current state no-deterministic, do not check and modify its parent.
     pub fn done_deterministic_itself(&self) {
         let mut mutate_state = self.mutate.borrow_mut();
-        // crate::log!(trace, "done state {:?}: {}", self.key, (*mutate_state).deterministic );
         if !mutate_state.deterministic {
             return;
         }
+        // crate::log!(trace, "{:?} become det", self.key);
         mutate_state.done_deterministic();
         for c in &self.children {
             c.done_deterministic_itself();
@@ -424,8 +426,12 @@ impl ObjectState {
     /// Show the state as a tree for debugging
     pub fn show_tree(&self, depth: usize) {
         println!(
-            "key: {:?}, depth: {}, addr: {:#x}, parent: {:?}",
-            self.key, depth, self as *const Self as usize, self.parent
+            "key: {:?}, depth: {}, addr: {:#x}, parent: {:?}, det: {}",
+            self.key,
+            depth,
+            self as *const Self as usize,
+            self.parent,
+            self.is_deterministic()
         );
         for c in &self.children {
             c.show_tree(depth + 1);

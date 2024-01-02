@@ -141,6 +141,21 @@ void test_two_buffer_len(char* buf1, char* buf2, int len, int sw) {
   }
 }
 
+void test_two_buffer_len2(char** bufs, int* sizes, int nbufs, int sw) {
+  if (bufs != NULL && sizes != NULL) {
+    for (int i = 0; i < nbufs; i++) {
+      if (bufs[i] == NULL || sizes[i] < 0) {
+        return;
+      }
+      for(int j = 0; j < sizes[i]; j++) {
+        printf("Test %d\n", bufs[i][j]);
+      }
+    }
+    if (sw == 12345) {
+      abort();
+    }
+  }
+}
 
 void test_buffer_index(char *buf, unsigned int index, int magic) {
   if (index < 20) return;

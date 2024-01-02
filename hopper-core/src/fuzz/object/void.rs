@@ -10,7 +10,7 @@ macro_rules! impl_void {
         impl ObjGenerate for $void {
             fn generate_new( state: &mut ObjectState) -> eyre::Result<Self> {
                 let _  = state.replace_weight(0);
-                state.done_deterministic();
+                state.done_deterministic_itself();
                 Ok(Self::default())
             }
         }

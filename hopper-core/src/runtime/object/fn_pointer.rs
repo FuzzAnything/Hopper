@@ -18,7 +18,7 @@ pub fn cast_fn_pointer<T: FnFuzzable + Clone>(
 ) -> eyre::Result<T> {
     // crate::log!(trace, "use {f_name} as function pointer");
     state.pointer = Some(PointerState::new_fn_pointer(f_name, false));
-    state.done_deterministic();
+    state.done_deterministic_itself();
     let f = f
         .downcast_ref::<T>()
         .context("fail to cast function pointer")?;
@@ -28,7 +28,7 @@ pub fn cast_fn_pointer<T: FnFuzzable + Clone>(
 pub fn cast_canary_fn_pointer<T: FnSignature>(state: &mut ObjectState) -> T {
     // crate::log!(trace, "use canary as function pointer");
     state.pointer = Some(PointerState::new_fn_pointer("__hopper_fn_canary", false));
-    state.done_deterministic();
+    state.done_deterministic_itself();
     T::canary_fn_pointer()
 }
 

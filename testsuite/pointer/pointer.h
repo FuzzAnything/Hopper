@@ -79,8 +79,10 @@ void test_illegal_free(char *);
 typedef struct PtrFnWarp {
   void (*f)(void *f);
 } PtrFnWarp;
-void util_indirect_free_ptr(PtrFnWarp f_wrap);
-PtrFnWarp util_get_free_fn();
+void util_set_free_fn(PtrFnWarp* f_wrap);
+// depend: util_set_free_fn
+// ignore
+void test_indirect_free_ptr(PtrFnWarp* f_wrap);
 
 /* Explicitly Related calls */
 TestCustom *util_create_pointer(char *title, int n);

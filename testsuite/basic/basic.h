@@ -7,6 +7,7 @@
 /* Test value compare */
 void test_cmp_var(int a, long b, char c);
 void test_cmp_struct(struct CmpStruct p);
+void test_cmp_struct2(struct CmpStruct* p);
 void test_switch(int a, int b);
 void test_switch2(int a);
 // ignore

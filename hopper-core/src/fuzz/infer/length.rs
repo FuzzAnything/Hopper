@@ -260,9 +260,7 @@ impl Fuzzer {
                 )?;
             }
 
-            let mut full_f = prefix.with_suffix(fields.clone());
-            // set &.$0 -> &
-            full_f.strip_index_suffix();
+            let full_f = prefix.with_suffix(fields.clone());
             let len_entry = IrEntry::Length {
                 arg_pos: Some(len_entry_arg_pos),
                 fields: len_entry_fields.clone(),
@@ -369,7 +367,11 @@ fn find_infer_targets(
         let num_fields: Vec<LocFields> = load
             .state
             .find_fields_with(|s| utils::is_index_or_length_number(s.ty), false);
+        if num_fields.is_empty() {
+            log!(trace, "{stmt_i} has not numbers");
+        }
         for f in num_fields {
+            log!(trace, "try check number at [{stmt_i}] - {f}");
             // if the number fails at the same place when it is zero, then it is not length or index,
             // special case: SIGFPE
             let stmt_index = program.stmts[stmt_i].index.use_index();
@@ -385,7 +387,7 @@ fn find_infer_targets(
                 // log!(trace, "add assumption for length inference: {op:?}");
                 continue;
             }
-            log!(trace, "add loc into tragets");
+            log!(trace, "add loc into targets");
             targets.push(num_loc.clone());
 
             // magnify the number values.

@@ -67,7 +67,7 @@ impl<T: ObjectDeserialize + Clone> ObjectDeserialize for Option<T> {
         if !config::ENABLE_SET_FN_POINTER {
             let _ = state.replace_weight(0);
         }
-        state.done_deterministic();
+        state.done_deterministic_itself();
         let sub_state = state
             .add_child(FieldKey::Option, std::any::type_name::<Option<T>>())
             .last_child_mut()?;

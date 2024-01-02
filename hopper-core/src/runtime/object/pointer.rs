@@ -22,19 +22,19 @@ macro_rules! impl_fuzz_pointer {
                     std::any::type_name::<T>(),
                     $is_mut,
                 ));
-                state.done_deterministic();
+                state.done_deterministic_itself();
                 Self(::std::ptr::null_mut())
             }
 
             /// Return a null pointer
             pub fn null(state: &mut ObjectState) -> Self {
-                state.done_deterministic();
+                state.done_deterministic_itself();
                 Self::loc_pointer(state, Location::null())
             }
 
             /// Return a stub pointer
             pub fn stub(state: &mut ObjectState) -> Self {
-                state.done_deterministic();
+                state.done_deterministic_itself();
                 let p = Self::loc_pointer(state, Location::null());
                 if let Some(ps) = &mut state.pointer {
                     ps.stub = true;

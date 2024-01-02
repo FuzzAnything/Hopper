@@ -174,13 +174,17 @@ char *util_get_content(TestCustom2 *a) {
 
 void test_illegal_free(char *a) { free(a); }
 
-void util_indirect_free_ptr(PtrFnWarp f_wrap) {
-  if (f_wrap.f != NULL) (*f_wrap.f)(NULL);
+void test_indirect_free_ptr(PtrFnWarp *f_wrap) {
+  if (f_wrap != NULL && f_wrap->f != NULL) {
+    (*f_wrap->f)(NULL);
+    if (f_wrap->f == free) {
+      abort();
+    }
+  }
 }
 
-PtrFnWarp util_get_free_fn() {
-  PtrFnWarp wrap = {free};
-  return wrap;
+void util_set_free_fn(PtrFnWarp *f_wrap) {
+  f_wrap->f = free;
 }
 
 TestCustom *util_create_pointer(char *title, int n) {

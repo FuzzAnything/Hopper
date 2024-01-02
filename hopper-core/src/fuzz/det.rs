@@ -36,10 +36,10 @@ pub enum DetAction {
     Last,
     Finish,
 }
-/// Call det step for object
+/// do det step for object
 /// first, we donwcast step to caller, and then invoke it with object and state.
 /// finnaly, we check its return and move the `det_iter`, or mark det is done.
-pub fn call_det<T: 'static + fmt::Debug + DetMutate>(
+pub fn do_det<T: 'static + fmt::Debug + DetMutate>(
     obj: &mut T,
     state: &mut ObjectState,
     //  // f: &dyn DetMutateStep,
@@ -131,10 +131,7 @@ impl DetMutateStepsCache {
         assert!(det_index <= len, "det_index is large than len");
         crate::log!(
             trace,
-            "type: {}, det index: {}, len: {}",
-            std::any::type_name::<T>(),
-            det_index,
-            len
+            "type: {key}, det index: {det_index}, len: {len}"
         );
         det_steps.get(det_index).map(|f| (f.as_ref(), len))
     }

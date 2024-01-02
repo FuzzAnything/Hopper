@@ -1,7 +1,7 @@
 //! Hooks for llvm mode
 //! TODO: indirect invoking
 
-use libc::{c_char, c_int, c_void, mode_t, off64_t, off_t, size_t, ssize_t, FILE};
+use libc::{c_char, c_int, c_void, mode_t, off_t, size_t, ssize_t, FILE};
 
 use super::get_instr_list_mut;
 use crate::{CmpType, MemType};
@@ -22,11 +22,14 @@ pub fn add_hooks() -> eyre::Result<()> {
         ("fopen", __hopper_fopen as _),
         ("fdopen", __hopper_fdopen as _),
         ("open", unsafe { __hopper_open_fn } as _),
+        #[cfg(target_os = "linux")]
         ("open64", unsafe { __hopper_open64_fn } as _),
         ("creat", __hopper_creat as _),
+        #[cfg(target_os = "linux")]
         ("creat64", __hopper_creat64 as _),
         ("close", __hopper_close as _),
         ("lseek", __hopper_lseek as _),
+        #[cfg(target_os = "linux")]
         ("lseek64", __hopper_lseek64 as _),
         ("read", __hopper_read as _),
         ("write", __hopper_write as _),
@@ -318,6 +321,7 @@ pub unsafe extern "C" fn __hopper_creat(path: *const c_char, mode: mode_t) -> c_
     libc::creat(path, mode)
 }
 
+#[cfg(target_os = "linux")]
 pub unsafe extern "C" fn __hopper_creat64(path: *const c_char, mode: mode_t) -> c_int {
     let id = caller_address!();
     let ty = MemType::Open as u16;
@@ -352,7 +356,8 @@ pub unsafe extern "C" fn __hopper_lseek(fd: c_int, offset: off_t, whence: c_int)
     libc::lseek(fd, offset, whence)
 }
 
-pub unsafe extern "C" fn __hopper_lseek64(fd: c_int, offset: off64_t, whence: c_int) -> off64_t {
+#[cfg(target_os = "linux")]
+pub unsafe extern "C" fn __hopper_lseek64(fd: c_int, offset: libc::off64_t, whence: c_int) -> libc::off64_t {
     let id = caller_address!();
     let ty = MemType::Lseek as u16;
     let addr = fd as u64;
