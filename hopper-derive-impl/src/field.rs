@@ -66,7 +66,7 @@ impl<'a> FieldExt<'a> {
     }
 
     pub fn is_opaque(&self) -> bool {
-        self.named && ( self.ident.to_string().starts_with('_')  || self.ident.to_string().starts_with("_bindgen_opaque"))
+        self.named && self.ident.to_string().starts_with("_bindgen_opaque")
     }
 }
 
@@ -269,6 +269,10 @@ pub fn struct_object_mutate_op_body(fields: &[FieldExt], unit: bool) -> TokenStr
 }
 
 pub fn struct_object_opaque_body(fields: &[FieldExt]) -> TokenStream {
+    let is_opaque = fields.iter().any(|f| f.is_opaque());
+    if is_opaque {
+        return my_quote!(true);
+    }
     let mut check_opaque = fields.iter().map(|f| {
         let ty = f.ty;
         my_quote!(<#ty>::is_opaque())
