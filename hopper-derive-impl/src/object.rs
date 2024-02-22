@@ -22,7 +22,6 @@ pub fn object_trait_for_struct(
     let mutate_op_body = field::struct_object_mutate_op_body(&fields, unit);
     let ptr_body = field::struct_object_ptr_body(&fields, unit);
     let layout_body = field::struct_object_layout_body(&fields, unit);
-    // let is_opaque = fields.iter().any(|f| f.is_opaque());
     let is_opaque = field::struct_object_opaque_body(&fields);
   
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
