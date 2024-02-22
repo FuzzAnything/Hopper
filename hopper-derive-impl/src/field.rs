@@ -66,7 +66,7 @@ impl<'a> FieldExt<'a> {
     }
 
     pub fn is_opaque(&self) -> bool {
-        self.named && self.ident.to_string().starts_with('_')
+        self.named && ( self.ident.to_string().starts_with('_')  || self.ident.to_string().starts_with("_bindgen_opaque"))
     }
 }
 
