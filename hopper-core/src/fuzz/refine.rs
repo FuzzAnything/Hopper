@@ -28,7 +28,7 @@ impl FuzzProgram {
             .use_index();
         loop {
             let cur_stmt = &self.stmts[index.get()].stmt;
-            // eyre::ensure!(index.get() < 512, "index is too large");
+            eyre::ensure!(index.get() < 4096, "index is too large");
             match cur_stmt {
                 FuzzStmt::Call(call) => {
                     let call_name = call.fg.f_name;
@@ -154,7 +154,7 @@ impl FuzzProgram {
         for citem in constraint.list.iter() {
             crate::log!(trace, "stmt: {}, constraint: {:?}", stmt_index.get(), citem);
             let lcs = citem.find_all_locations_with_any_index(self, stmt_index, &prefix);
-            // eyre::ensure!(lcs.len() <= 10000, "fail to refine");
+            eyre::ensure!(lcs.len() <= 10000, "fail to refine");
             for (loc, constraint) in lcs {
                 crate::log!(trace, "refining loc: {}", loc.serialize().unwrap());
                 let operator = match &constraint {

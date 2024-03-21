@@ -189,6 +189,10 @@ fn main() {
         // Diable layout test
         .layout_tests(false);
 
+    if option_env!("HOPPER_FUZZ_INLINE_FUNCTION").is_some() {
+        builder = builder.generate_inline_functions(true);
+    }
+
     if let Some(allowlist) = option_env!("HOPPER_FUNC_ALLOW_LIST") {
         builder = builder.allowlist_function("fopen");
         let list: std::str::Split<char> = allowlist.split(',');

@@ -60,6 +60,7 @@ After running `compile`, you will find that it generates the following files in 
 - `HOPPER_TYPE_BLACKLIST`: includes type blacklists that hopper won't compile. `bindgen` will not generate code for the types. e.g. `HOPPER_TYPE_BLACKLIST=type1,type2`.
 - `HOPPER_ITEM_BLACKLIST`: includes item(constants/variables) blacklists that hopper won't compile. `bindgen` will not generate code for the items. e.g. `HOPPER_ITEM_BLACKLIST=IPPORT_RESERVED`
 - `HOPPER_CUSTOM_OPAQUE_LIST`: includes custom opaque types we defined. e.g. `HOPPER_CUSTOM_OPAQUE_LIST=type1`.
+- `HOPPER_FUZZ_INLINE_FUNCTION`: includes inline function as our targets, see [FAQ](https://rust-lang.github.io/rust-bindgen/faq.html#why-isnt-bindgen-generating-bindings-to-inline-functions) in bindgen.
 
 #### Tips
 - You can set the arguments and environment variables for compiling and running in a configuration file named `hopper.config`, see `examples/*` for details.

@@ -23,13 +23,13 @@ pub fn compile(config: &Config) -> Result<()> {
     fs::create_dir_all(&config.output).expect("fail to create output directory");
     let output = PathBuf::from(&config.output)
         .canonicalize()
-        .expect("cononicalize output path fail");
+        .context("cononicalize output path fail")?;
     eyre::ensure!(!config.header.is_empty(), "require at least one header");
     eyre::ensure!(!config.library.is_empty(), "require at least one library");
     let header = if config.header.len() == 1 {
         let header = PathBuf::from(&config.header[0])
             .canonicalize()
-            .expect("cononicalize header path fail");
+            .context("cononicalize header path fail")?;
         check::check_header(&header)?;
         header
     } else {
@@ -41,7 +41,7 @@ pub fn compile(config: &Config) -> Result<()> {
     for lib in &config.library {
         let lib = PathBuf::from(lib)
             .canonicalize()
-            .expect("cononicalize library path fail");
+            .context("cononicalize library path fail")?;
         check::check_library(&lib)?;
         let lib_info = crate::binary_info::BinaryInfo::parse(&lib)?;
         let instrumented_lib = instrument(&lib, &output, config, &lib_info)?;

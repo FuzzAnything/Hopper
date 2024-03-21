@@ -175,7 +175,8 @@ cov)
     DATA_FILE=$COV_DIR/all.profdata
     find ${PROFILE_DIR} -type f > ${COV_DIR}/prof.list
     llvm-profdata merge -sparse -f ${COV_DIR}/prof.list -o ${DATA_FILE}
-    COV_EXCLUDE='(fuzzing|fuzz|test|OT|cre2|oss|examples)/'
+    # COV_EXCLUDE='(fuzzing|fuzz|test|OT|cre2|oss|examples)/'
+    COV_EXCLUDE='${COV_EXCLUDE:-}'
     llvm-cov show  -ignore-filename-regex=$COV_EXCLUDE --format=html $BIN_FILE -instr-profile=${DATA_FILE} >${COV_DIR}/coverage.html
     # llvm-cov report -show-functions -ignore-filename-regex=$COV_EXCLUDE -instr-profile=${DATA_FILE} $BIN_FILE $SRC_DIR | tee ${COV_DIR}/coverage_funcs.report
     llvm-cov report $BIN_FILE -instr-profile=${DATA_FILE} -ignore-filename-regex=$COV_EXCLUDE | tee ${COV_DIR}/coverage.report
