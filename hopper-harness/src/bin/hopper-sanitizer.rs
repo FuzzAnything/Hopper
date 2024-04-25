@@ -343,16 +343,11 @@ pub fn extract_output_pc(buf: &str) -> Option<String> {
     None
 }
 
-/// extract violate constraints from raw str program.
-pub fn extract_violate_constraints(buf: &str) -> eyre::Result<Vec<ConstraintSig>> {
-    //* Voilate constraint: png_convert_to_rfc1123_buffer[$0][[&]] = SetLength${ len: 4,  }, png_convert_to_rfc1123_buffer[$0][[&]] = SetLength${ len: 64,  },
-    let mut constraint_vec: Vec<ConstraintSig> = Vec::new();
-    let mut buf_de = hopper::Deserializer::new(buf, None);
-    if buf_de.next_token_until("Violate constraint: ").is_err() {
-        return Ok(constraint_vec);
-    }
-    while buf_de.peek_char().is_some() {
-        let curr_buf = buf_de.buf;
+fn parse_constraints_from_line(buf: &str) -> eyre::Result<Vec<ConstraintSig>> {
+    let mut constraints = Vec::new();
+    let mut buf = String::from(buf);
+    while !buf.is_empty() {
+        let curr_buf = &buf;
         let mut i = 0;
         let mut bracket_cnt = 0;
         while i < curr_buf.len() {
@@ -368,10 +363,33 @@ pub fn extract_violate_constraints(buf: &str) -> eyre::Result<Vec<ConstraintSig>
             i += 1;
         }
         let constraint_str = &curr_buf[0..i];
-        buf_de.buf = curr_buf[i + 1..].trim();
         let mut de = hopper::Deserializer::new(constraint_str, None);
         let constraint_sig = hopper::ConstraintSig::deserialize(&mut de)?;
-        constraint_vec.push(constraint_sig);
+        constraints.push(constraint_sig);
+        buf = curr_buf[i + 1..].trim().to_string();
+    }
+    Ok(constraints)
+}
+
+/// extract violate constraints from raw str program.
+pub fn extract_violate_constraints(buf: &str) -> eyre::Result<Vec<ConstraintSig>> {
+    //* Voilate constraint: png_convert_to_rfc1123_buffer[$0][[&]] = SetLength${ len: 4,  }, png_convert_to_rfc1123_buffer[$0][[&]] = SetLength${ len: 64,  },
+    let mut constraint_vec: Vec<ConstraintSig> = Vec::new();
+    let mut buf_de = hopper::Deserializer::new(buf, None);
+    loop {
+        let has_constraint = buf_de.next_token_until("Violate constraint: ").is_ok();
+        if !has_constraint {
+            break;
+        }
+        let mut line = String::new();
+        while let Some(char) = buf_de.next_char() {
+            if char.eq(&'\n') {
+                break;
+            }
+            line.push(char);
+        }
+        let constraints = parse_constraints_from_line(&line)?;
+        constraint_vec.extend(constraints);
     }
     Ok(constraint_vec)
 }
@@ -533,6 +551,7 @@ fn sanitize_variable_args_crash(crashes: Vec<PathBuf>) -> eyre::Result<Vec<PathB
 fn sanitize_uninfered_crashes(crashes: &Vec<PathBuf>, fuzzer: &mut Fuzzer) -> eyre::Result<()> {
     hopper::log!(info, "Infer the crashes again ..."); 
     for crash_path in crashes {
+        hopper::log!(info, "infer path: {crash_path:?}");
         let crash_raw = std::fs::read_to_string(crash_path)?;
         if !extract_violate_constraints(&crash_raw)?.is_empty() {
             continue;
