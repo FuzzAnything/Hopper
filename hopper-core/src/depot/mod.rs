@@ -8,7 +8,6 @@ use self::select::*;
 use crate::{execute::StatusType, FuzzProgram, FeedbackSummary};
 pub use io::*;
 use priority::PriorityWrap;
-pub use priority::*;
 
 /// Depot for saving all inputs, hangs, and crashes.
 pub struct Depot {

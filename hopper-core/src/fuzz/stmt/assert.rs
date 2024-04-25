@@ -30,7 +30,7 @@ pub enum ExpectedValue {
 unsafe impl Sync for ExpectedValue {}
 
 thread_local! {
-    static ASSERTIONS: RefCell<Vec<Assertion>> = RefCell::new(vec![]);
+    static ASSERTIONS: RefCell<Vec<Assertion>> = const { RefCell::new(vec![]) };
 }
 
 pub fn add_assertion(assertion: Assertion) {

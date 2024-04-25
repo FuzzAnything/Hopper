@@ -15,7 +15,6 @@ mod bitfield;
 pub use builder::*;
 pub use canary::*;
 pub use layout::*;
-pub use pointer::*;
 pub use state::*;
 pub use void::*;
 pub use bitfield::*;
