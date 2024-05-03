@@ -3,25 +3,25 @@ use std::cell::Cell;
 
 thread_local! {
     // Deterministic generation in pilot phase
-    pub static PILOT_DET: Cell<bool> = Cell::new(false);
+    pub static PILOT_DET: Cell<bool> = const { Cell::new(false) };
     // Generate only single call
-    pub static SINGLE_CALL: Cell<bool> = Cell::new(true);
+    pub static SINGLE_CALL: Cell<bool> = const { Cell::new(true) };
     // Reuse statement in generation
-    pub static REUSE_STMT: Cell<bool> = Cell::new(false);
+    pub static REUSE_STMT: Cell<bool> = const { Cell::new(false) };
     // Only mutate argument inputs.
-    pub static INPUT_ONLY: Cell<bool> = Cell::new(false);
+    pub static INPUT_ONLY: Cell<bool> = const { Cell::new(false) };
     // Refine successful or not
-    pub static REFINE_SUC: Cell<bool> = Cell::new(false);
+    pub static REFINE_SUC: Cell<bool> = const { Cell::new(false) };
     // Mutate pointer or not
-    pub static MUTATE_PTR: Cell<bool> = Cell::new(false);
+    pub static MUTATE_PTR: Cell<bool> = const { Cell::new(false) };
     // deterministic mutation for call
-    pub static CALL_DET: Cell<bool> = Cell::new(false);
+    pub static CALL_DET: Cell<bool> = const { Cell::new(false) };
     // Generate an incomplete program
-    pub static INCOMPLETE_GEN: Cell<bool> = Cell::new(false);
+    pub static INCOMPLETE_GEN: Cell<bool> = const { Cell::new(false) };
     // Running in pilot infer phase
-    pub static PILOT_INFER: Cell<bool> = Cell::new(false);
+    pub static PILOT_INFER: Cell<bool> = const { Cell::new(false) };
     // u64 temp value
-    pub static TMP_U64: Cell<u64> = Cell::new(0);
+    pub static TMP_U64: Cell<u64> = const { Cell::new(0) };
 }
 
 pub fn is_pilot_det() -> bool {

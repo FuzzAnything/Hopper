@@ -23,7 +23,6 @@ pub use constraints::*;
 pub use det::*;
 pub use flag::*;
 pub use generate::*;
-pub use mutate::*;
 pub use object::*;
 pub use operator::*;
 pub use rng::*;

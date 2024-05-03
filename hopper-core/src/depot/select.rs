@@ -45,7 +45,7 @@ const SA_UNIQ_NEW: u64 = 3;
 const KEY_BONUS: u64 = 2;
 
 thread_local! {
-    static AVG_SCORE: Cell<(f64, u64)> = Cell::new((0_f64, 0_u64));
+    static AVG_SCORE: Cell<(f64, u64)> = const { Cell::new((0_f64, 0_u64)) };
 }
 
 impl Selector for SaSelector {
