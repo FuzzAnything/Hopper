@@ -151,12 +151,12 @@ pub struct Config {
 
 use eyre::Context;
 use once_cell::sync::OnceCell;
-use std::io::BufRead;
+use std::{io::BufRead, ptr::{addr_of, addr_of_mut}};
 
 pub static mut CONFIG_INSTANCE: Option<Config> = None;
 
 pub fn get_config() -> &'static Config {
-    if let Some(c) = unsafe { &CONFIG_INSTANCE } {
+    if let Some(Some(c)) = unsafe { addr_of!(CONFIG_INSTANCE).as_ref() } {
         return c;
     }
     unsafe {
@@ -166,7 +166,7 @@ pub fn get_config() -> &'static Config {
 }
 
 pub fn get_config_mut() -> &'static mut Config {
-    if let Some(c) = unsafe { &mut CONFIG_INSTANCE } {
+    if let Some(Some(c)) = unsafe { addr_of_mut!(CONFIG_INSTANCE).as_mut() } {
         return c;
     }
     unsafe {
