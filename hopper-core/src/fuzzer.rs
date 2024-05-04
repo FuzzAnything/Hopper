@@ -307,7 +307,10 @@ impl Fuzzer {
             // We do not like seeds may crash or hangs
             if !status.is_normal() {
                 self.fail_cnt += 5;
-                crate::log_warn!("fail to count time for program {}, status: {status:?}", program.id);
+                crate::log_warn!(
+                    "fail to count time for program {}, status: {status:?}",
+                    program.id
+                );
                 crate::log_trace!("program: {program}");
                 return Ok(None);
                 // it is not fit our `fast` mode, which may affect some global states or just not stable.
@@ -357,7 +360,12 @@ impl Fuzzer {
         }
 
         // run again to check path to avoid some call in prev iteration modify environment, e.g. global variables.
-        let status = self.executor.execute_program(program)?;
+        let new_status = self.executor.execute_program(program)?;
+        if new_status != status {
+            // no stable, ignore
+            return Ok(false);
+        }
+
         self.count += 1;
         let new_edges = self.observer.has_new_path(status)?;
         if new_edges.is_empty() {
@@ -385,14 +393,15 @@ impl Fuzzer {
         let _changed = self.minimize(&mut p, &status)?;
         let min_secs = start_at.elapsed().as_secs_f32();
 
+        // ----- count time for caculate speed for the seed
+        let Some(time_used) = self.count_time(&p)? else {
+            return Ok(false);
+        };
+
         // ----- update coverage
         crate::log!(trace, "id: {id}, new edges: {new_edges:?}");
         self.observer.merge_coverage(&new_edges, status);
 
-        // ----- count time for caculate speed for the seed
-        let Some(time_used) = self.count_time(&p)? else {
-            return Ok(true);
-        };
         fb_summary.time_used = time_used;
         let count_secs = start_at.elapsed().as_secs_f32() - min_secs;
 

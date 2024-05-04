@@ -246,7 +246,7 @@ impl FuzzProgram {
     /// Check if the loc is mutated
     pub fn is_loc_mutated(&self, loc: &Location) -> bool {
         let wl = loc.to_weak_loc();
-        self.ops.iter().any(|l| l.key == wl)
+        self.ops.iter().any(|l| !l.key.is_released() && l.key == wl)
     }
 }
 

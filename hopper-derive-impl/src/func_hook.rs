@@ -120,7 +120,7 @@ fn add_custom_type_extra_info(
     let mut tokens = vec![];
     for stru in structs {
         let stru_ident = stru.ident.to_string();
-        let (fields, _named, _unit) = super::field::convert_fields(&stru.fields);
+        let (fields, _named, _unit) = super::field::convert_fields(&stru.fields, false);
         for f in &fields {
             let ty = f.ty;
             let ty_alias = format_type(ty);

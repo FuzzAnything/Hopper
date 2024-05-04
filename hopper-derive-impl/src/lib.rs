@@ -68,3 +68,9 @@ const fn fn_pointer_name_prefix() -> &'static str {
         "GENERATED_hopper_callback_"
     }
 }
+
+fn is_packed_struct(attrs: &[syn::Attribute]) -> bool {
+    let attrs_tokens = my_quote!(#(#attrs)*, );
+    let attrs = attrs_tokens.to_string();
+    attrs.contains("packed")
+}

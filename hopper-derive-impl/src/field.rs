@@ -10,10 +10,11 @@ pub struct FieldExt<'a> {
     pub ty: &'a syn::Type,
     pub ident: syn::Ident,
     pub named: bool,
+    pub packed: bool,
 }
 
 impl<'a> FieldExt<'a> {
-    pub fn new(field: &'a syn::Field, idx: usize, named: bool) -> FieldExt<'a> {
+    pub fn new(field: &'a syn::Field, idx: usize, named: bool, packed: bool) -> FieldExt<'a> {
         FieldExt {
             ty: &field.ty,
             ident: if named {
@@ -22,6 +23,7 @@ impl<'a> FieldExt<'a> {
                 syn::Ident::new(&format!("f{idx}"), proc_macro2::Span::call_site())
             },
             named,
+            packed
         }
     }
 
@@ -53,6 +55,14 @@ impl<'a> FieldExt<'a> {
     }
 
     pub fn get_field_value(&self, use_self: bool) -> TokenStream {
+        if use_self && self.named && self.packed {
+            let ident = &self.ident;
+            return my_quote!({ self.#ident } );
+        }
+        self.get_field_value_inner(use_self)
+    }
+
+    pub fn get_field_value_inner(&self, use_self: bool) -> TokenStream {
         let ident = &self.ident;
         if use_self {
             if self.named {
@@ -70,26 +80,27 @@ impl<'a> FieldExt<'a> {
     }
 }
 
-pub fn convert_fields(fields: &syn::Fields) -> (Vec<FieldExt>, bool, bool) {
+pub fn convert_fields(fields: &syn::Fields, packed: bool) -> (Vec<FieldExt>, bool, bool) {
     let (fields, named) = match *fields {
         syn::Fields::Named(ref fields) => (Some(&fields.named), true),
         syn::Fields::Unit => (None, false),
         syn::Fields::Unnamed(ref fields) => (Some(&fields.unnamed), false),
     };
     let unit = fields.is_none();
-    let fields = convert_field_list(fields, named);
+    let fields = convert_field_list(fields, named, packed);
     (fields, named, unit)
 }
 
 pub fn convert_field_list(
     fields: Option<&Punctuated<syn::Field, Token![,]>>,
     named: bool,
+    packed: bool,
 ) -> Vec<FieldExt> {
     if let Some(fields) = fields {
         fields
             .iter()
             .enumerate()
-            .map(|(i, f)| FieldExt::new(f, i, named))
+            .map(|(i, f)| FieldExt::new(f, i, named, packed))
             .collect()
     } else {
         vec![]
@@ -550,7 +561,7 @@ pub fn union_object_use_member(fields: &[FieldExt]) -> TokenStream {
         let field = &f.ident;
         let field_name = field.to_string();
         let ty = &f.ty;
-        let value = f.get_field_value(true);
+        let value = f.get_field_value_inner(true);
         let crate_path = super::get_crate_path();
         // state should be revised
         my_quote!(#field_name => {

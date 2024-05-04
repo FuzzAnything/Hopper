@@ -21,7 +21,7 @@ pub struct FuzzVisitor<'ast> {
     unions: Vec<&'ast ItemUnion>,
     type_alias: Vec<&'ast ItemType>,
     extern_mark: Option<&'ast ItemForeignMod>,
-    excluded_type: Vec<String>,
+    excluded_structs: Vec<&'ast ItemStruct>,
     // TypeBareFn does not implement `Default`, so we cannot use hashmap.
     callbacks: BTreeMap<String, TypeBareFn>,
 }
@@ -75,9 +75,10 @@ impl<'ast> FuzzVisitor<'ast> {
                     println!("cargo:warning=`{}` includes `__`", &syntax);
                     return false;
                 }
-                for ty in &self.excluded_type {
-                    if syntax.contains(ty) {
-                        println!("cargo:warning=`{}` use excluded type: {}", &syntax, ty);
+                for ty in &self.excluded_structs {
+                    let ident = ty.ident.to_string();
+                    if syntax.contains(&ident) {
+                        println!("cargo:warning=`{}` use excluded type: {}", &syntax, ident);
                         return false;
                     }
                 }
@@ -96,6 +97,13 @@ impl<'ast> FuzzVisitor<'ast> {
                 &stru.generics,
                 &stru.attrs,
                 &stru.fields,
+            );
+            tokens.extend(ts);
+        }
+        for &stru in &self.excluded_structs {
+            let ts = object::object_trait_for_opaque(
+                &stru.ident,
+                &stru.generics,
             );
             tokens.extend(ts);
         }
@@ -176,8 +184,8 @@ impl<'ast> Visit<'ast> for FuzzVisitor<'ast> {
         let attrs_tokens = my_quote!(#(#attrs)*, );
         let attrs = attrs_tokens.to_string();
         let ident = node.ident.to_string();
-        if ident == "__BindgenBitfieldUnit" {
-            // ignore implement for __BindgenBitfieldUnit
+        if ident.starts_with("__Bindgen") || ident == "__IncompleteArrayField" {
+            // ignore implement for __BindgenBitfieldUnit, __BindgenUnionField
         }
         // avoid adding struct without clone
         else if !attrs.contains("Clone") {
@@ -185,7 +193,7 @@ impl<'ast> Visit<'ast> for FuzzVisitor<'ast> {
                 "cargo:warning={} has not clone attribute! {}",
                 &ident, attrs
             );
-            self.excluded_type.push(ident);
+            self.excluded_structs.push(node);
         } else {
             self.structs.push(node);
         }

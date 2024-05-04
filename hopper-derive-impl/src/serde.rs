@@ -8,11 +8,12 @@ use syn::{punctuated::Punctuated, Token};
 pub fn serde_trait_for_struct(
     name: &syn::Ident,
     generics: &syn::Generics,
-    _attrs: &[syn::Attribute],
+    attrs: &[syn::Attribute],
     fields: &syn::Fields,
 ) -> TokenStream {
     let crate_path = super::get_crate_path();
-    let (fields, named, unit) = field::convert_fields(fields);
+    let packed = super::is_packed_struct(attrs);
+    let (fields, named, unit) = field::convert_fields(fields, packed);
     let ser_body = field::struct_serialize_body(&fields, true);
     let de_body = field::struct_deserialize_body(&fields, unit, named);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
@@ -40,11 +41,12 @@ pub fn serde_trait_for_struct(
 pub fn object_serde_trait_for_struct(
     name: &syn::Ident,
     generics: &syn::Generics,
-    _attrs: &[syn::Attribute],
+    attrs: &[syn::Attribute],
     fields: &syn::Fields,
 ) -> TokenStream {
     let crate_path = super::get_crate_path();
-    let (fields, named, unit) = field::convert_fields(fields);
+    let packed = super::is_packed_struct(attrs);
+    let (fields, named, unit) = field::convert_fields(fields, packed);
     let ser_obj_body = field::struct_object_serialize_body(&fields, true);
     let trans_obj_body = field::struct_object_translate_body(&fields, true);
     let de_obj_body = field::struct_object_deserialize_body(&fields, unit, named);
@@ -82,11 +84,12 @@ pub fn object_serde_trait_for_struct(
 pub fn serde_trait_for_union(
     name: &syn::Ident,
     generics: &syn::Generics,
-    _attrs: &[syn::Attribute],
+    attrs: &[syn::Attribute],
     fields: &syn::FieldsNamed,
 ) -> TokenStream {
     let crate_path = super::get_crate_path();
-    let fields = field::convert_field_list(Some(&fields.named), true);
+    let packed = super::is_packed_struct(attrs);
+    let fields = field::convert_field_list(Some(&fields.named), true, packed);
     let ser_body = field::union_serialize_body(&fields, true);
     let de_body = field::union_deserialize_body(&fields);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
@@ -115,11 +118,12 @@ pub fn serde_trait_for_union(
 pub fn object_serde_trait_for_union(
     name: &syn::Ident,
     generics: &syn::Generics,
-    _attrs: &[syn::Attribute],
+    attrs: &[syn::Attribute],
     fields: &syn::FieldsNamed,
 ) -> TokenStream {
     let crate_path = super::get_crate_path();
-    let fields = field::convert_field_list(Some(&fields.named), true);
+    let packed = super::is_packed_struct(attrs);
+    let fields = field::convert_field_list(Some(&fields.named), true, packed);
     let ser_obj_body = field::union_object_serialize_body(&fields, true);
     let trans_obj_body = field::union_object_translate_body(&fields, true);
     let de_obj_body = field::union_object_deserialize_body(&fields);
@@ -159,10 +163,11 @@ pub fn object_serde_trait_for_union(
 pub fn serde_trait_for_enum(
     name: &syn::Ident,
     generics: &syn::Generics,
-    _attrs: &[syn::Attribute],
+    attrs: &[syn::Attribute],
     variants: &Punctuated<syn::Variant, Token![,]>,
 ) -> TokenStream {
     let crate_path = super::get_crate_path();
+    let packed = super::is_packed_struct(attrs);
     let ser_impls = variants.iter().map(|v| {
         let key = &v.ident;
         let key_name = key.to_string();
@@ -172,7 +177,7 @@ pub fn serde_trait_for_enum(
                 Ok(format!("{}$", #key_name))
             })
         } else {
-            let (fields, named, _) = field::convert_fields(fields);
+            let (fields, named, _) = field::convert_fields(fields, packed);
             let fields_ser = field::struct_serialize_body(&fields, false);
             let field_keys = field::list_field_keys(&fields, named);
             my_quote!(Self::#key #field_keys => {
@@ -193,7 +198,7 @@ pub fn serde_trait_for_enum(
         if fields.is_empty() {
             my_quote!(#key_name => Ok(Self::#key))
         } else {
-            let (fields, named, unit) = field::convert_fields(fields);
+            let (fields, named, unit) = field::convert_fields(fields, packed);
             let de_obj_body = field::struct_deserialize_body(&fields, unit, named);
             my_quote!(#key_name => {
                 de.eat_token("{")?;
@@ -231,10 +236,11 @@ pub fn serde_trait_for_enum(
 pub fn object_serde_trait_for_enum(
     name: &syn::Ident,
     generics: &syn::Generics,
-    _attrs: &[syn::Attribute],
+    attrs: &[syn::Attribute],
     variants: &Punctuated<syn::Variant, Token![,]>,
 ) -> TokenStream {
     let crate_path = super::get_crate_path();
+    let packed = super::is_packed_struct(attrs);
     let ser_obj_impls = variants.iter().map(|v| {
         let key = &v.ident;
         let key_name = key.to_string();
@@ -244,7 +250,7 @@ pub fn object_serde_trait_for_enum(
                 Ok(format!("{}$", #key_name))
             })
         } else {
-            let (fields, named, _) = field::convert_fields(fields);
+            let (fields, named, _) = field::convert_fields(fields, packed);
             let fields_ser = field::struct_object_serialize_body(&fields, false);
             let field_keys = field::list_field_keys(&fields, named);
             my_quote!(Self::#key #field_keys => {
@@ -265,7 +271,7 @@ pub fn object_serde_trait_for_enum(
         if fields.is_empty() {
             my_quote!(#key_name => Ok(Self::#key))
         } else {
-            let (fields, named, unit) = field::convert_fields(fields);
+            let (fields, named, unit) = field::convert_fields(fields, packed);
             let de_obj_body = field::struct_object_deserialize_body(&fields, unit, named);
             my_quote!(#key_name => {
                 de.eat_token("{")?;
@@ -302,9 +308,10 @@ pub fn object_serde_trait_for_enum(
 pub fn kind_trait_for_enum(
     name: &syn::Ident,
     generics: &syn::Generics,
-    _attrs: &[syn::Attribute],
+    attrs: &[syn::Attribute],
     variants: &Punctuated<syn::Variant, Token![,]>,
 ) -> TokenStream {
+    let packed = super::is_packed_struct(attrs);
     let kind_impls = variants.iter().map(|v| {
         let key = &v.ident;
         let key_name = key.to_string();
@@ -312,7 +319,7 @@ pub fn kind_trait_for_enum(
         if fields.is_empty() {
             my_quote!(Self::#key => #key_name)
         } else {
-            let (_, named, _) = field::convert_fields(fields);
+            let (_, named, _) = field::convert_fields(fields, packed);
             if named {
                 my_quote!(Self::#key {..} => #key_name)
             } else {
