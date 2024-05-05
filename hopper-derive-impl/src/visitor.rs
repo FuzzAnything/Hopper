@@ -70,16 +70,29 @@ impl<'ast> FuzzVisitor<'ast> {
                 // check if the signature contain excluded types
                 let name = f.ident.to_string();
                 let syntax = my_quote!(#f);
-                let syntax = syntax.to_string();
                 if name.starts_with("__") {
                     println!("cargo:warning=`{}` includes `__`", &syntax);
                     return false;
                 }
-                for ty in &self.excluded_structs {
-                    let ident = ty.ident.to_string();
-                    if syntax.contains(&ident) {
-                        println!("cargo:warning=`{}` use excluded type: {}", &syntax, ident);
-                        return false;
+
+                let mut args = vec![];
+                for arg in f.inputs.iter() {
+                    if let syn::FnArg::Typed(t) = arg {
+                        let ty_syntax = my_quote!(#t).to_string();
+                        if ty_syntax.contains("FuzzMutPointer") {
+                            continue
+                        }
+                        args.push(ty_syntax);
+                    }
+                }
+                
+                for excluded_ty in &self.excluded_structs {
+                    let ident = excluded_ty.ident.to_string();
+                    for arg_ty in &args {
+                        if arg_ty.contains(&ident) {
+                            println!("cargo:warning=`{}` use excluded type: {}", &syntax, ident);
+                            return false;
+                        }
                     }
                 }
                 true
