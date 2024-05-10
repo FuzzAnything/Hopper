@@ -1,8 +1,8 @@
-// func_include cms*
+func_include cms*
 // func_exclude cmsCreateBCHSWabstractProfile,cmsCreateBCHSWabstractProfileTHR
 // func_exclude cmsSetLogErrorHandler,cmsSetLogErrorHandlerTHR
 // func_exclude cmsPlugin,cmsPluginTHR,cmsUnregisterPlugins,cmsUnregisterPluginsTHR
-func_include cmsOpenProfileFromMem,cmsCreate_sRGBProfile,cmsCreateTransform,cmsDoTransform
+// func_include cmsOpenProfileFromMem,cmsCreate_sRGBProfile,cmsCreateTransform,cmsDoTransform
 
 // type _cmsContext_struct* = $null
 // func cmsCreateContext[$0] = $null

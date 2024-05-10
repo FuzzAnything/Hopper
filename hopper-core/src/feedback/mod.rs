@@ -47,7 +47,7 @@ pub struct FeedbackSummary {
     // path's length
     pub path_len: usize,
     // is it reach uniq new path
-    pub has_new_uniq_path: bool,
+    pub num_uniq_path: usize,
 }
 
 pub static mut INSTR_LIST: *mut InstrList = std::ptr::null_mut();

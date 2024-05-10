@@ -53,8 +53,8 @@ impl Selector for SaSelector {
         let edge_num = feedback.path_len as u128;
         let t_used = feedback.time_used as f64;
         let call_num = program.stmts.iter().filter(|s| s.stmt.is_call()).count() as u128;
-        assert!(call_num > 0, "The number of call statements cannot be zero!");
-        let r = (edge_num / call_num) as f64 / t_used;
+        // assert!(call_num > 0, "The number of call statements cannot be zero!");
+        let r = edge_num as f64 / t_used;
         // make the range of `r` to be [0, 5];
         let avg = AVG_SCORE.with(|c| {
             let (mut avg, mut num) = c.get();
@@ -74,7 +74,7 @@ impl Selector for SaSelector {
             debug,
             "#edge: {edge_num}, #t: {t_used}, #call: {call_num}, score: {score}"
         );
-        if feedback.has_new_uniq_path {
+        if feedback.num_uniq_path > 5 {
             bonus += SA_UNIQ_NEW;
         }
         (bonus, score)

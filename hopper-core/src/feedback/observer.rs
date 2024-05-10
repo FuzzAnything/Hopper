@@ -44,9 +44,6 @@ impl Observer {
         self.branches_state.has_new_uniq(&trace, status)
     }
 
-    pub fn has_new_uniq_path(&self, trace: &[(usize, BucketType)], status: StatusType) -> bool {
-        !self.branches_state.has_new_uniq(trace, status).is_empty()
-    }
 
     /// Merge the update list to global coverage
     pub fn merge_coverage(&mut self, update_list: &[(usize, BucketType)], status: StatusType) {
@@ -94,6 +91,6 @@ impl Observer {
     pub fn update_summary(&self, feedback: &mut FeedbackSummary, status: StatusType) {
         let path = self.feedback.path.get_list();
         feedback.path_len = path.len();
-        feedback.has_new_uniq_path |= self.has_new_uniq_path(&path, status);
+        feedback.num_uniq_path =  self.branches_state.has_new_uniq(&path, status).len();
     }
 }
