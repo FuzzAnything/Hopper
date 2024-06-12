@@ -41,7 +41,7 @@ You may wrap the header file with the missing definitions.
 Hopper uses [E9Patch](https://github.com/GJDuck/e9patch) to instrument binaries by default. Optionally, you can use [LLVM](./hopper-instrument/llvm-mode/) for source code instrumentation.
 
 After running `compile`, you will find that it generates the following files in the output directory:
-- `bin/hopper-fuzzer`:  generates inputs, maintains states, and uses `harness` to excuted the inputs.
+- `bin/hopper-fuzzer`:  generates inputs, maintains states, and uses `harness` to execute the inputs.
 - `bin/hopper-harness`:  executes the inputs.
 - `bin/hopper-translate`:  translates inputs to C source code.
 - `bin/hopper-generator`: replays the generate process.
