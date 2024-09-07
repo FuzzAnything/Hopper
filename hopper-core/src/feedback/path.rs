@@ -25,10 +25,14 @@ impl SHMable for Path {
     }
     #[cfg(feature = "llvm_mode")]
     fn post_hander(ptr: *const u8) {
-        unsafe { 
+        unsafe {
             __hopper_area_ptr = ptr;
         };
-        crate::log!(info, "update {} shm pointer in llvm runtime !", Self::name());
+        crate::log!(
+            info,
+            "update {} shm pointer in llvm runtime !",
+            Self::name()
+        );
     }
 }
 
@@ -44,30 +48,16 @@ impl Path {
         let mut path = Vec::<(usize, BucketType)>::new();
         let flat_buf: &BranchFlatBuf = unsafe { std::mem::transmute(&self.buf) };
         for (i, &v) in flat_buf.iter().enumerate() {
-            macro_rules! run_loop {
-                () => {{
-                    let base = i * ENTRY_SIZE;
-                    for j in 0..ENTRY_SIZE {
-                        let idx = base + j;
-                        let new_val = self.buf[idx];
-                        if new_val > 0 {
-                            // crate::log!(trace, "id: {}, val: {}", idx, new_val);
-                            path.push((idx, COUNT_LOOKUP[new_val as usize]));
-                        }
+            if v > 0 {
+                cold();
+                let base = i * ENTRY_SIZE;
+                for j in 0..ENTRY_SIZE {
+                    let idx = base + j;
+                    let new_val = self.buf[idx];
+                    if new_val > 0 {
+                        // crate::log!(trace, "id: {}, val: {}", idx, new_val);
+                        path.push((idx, COUNT_LOOKUP[new_val as usize]));
                     }
-                }};
-            }
-            #[cfg(feature = "unstable")]
-            {
-                if unsafe { unlikely(v > 0) } {
-                    run_loop!()
-                }
-            }
-            #[cfg(not(feature = "unstable"))]
-            {
-                if v > 0 {
-                    cold();
-                    run_loop!()
                 }
             }
         }
@@ -98,10 +88,10 @@ fn is_sub_set(path: &[(usize, BucketType)], sub: &[(usize, BucketType)]) -> bool
     let sub_len = sub.len();
     while i < sub_len {
         while j < path_len {
-            if sub[i].0 == path[j].0  {
+            if sub[i].0 == path[j].0 {
                 i += 1;
                 j += 1;
-                break;   
+                break;
             }
             j += 1;
         }
@@ -112,8 +102,6 @@ fn is_sub_set(path: &[(usize, BucketType)], sub: &[(usize, BucketType)]) -> bool
     i == sub_len
 }
 
-#[cfg(feature = "unstable")]
-use std::intrinsics::unlikely;
 /// `cold` is used to mark sth is unlikely to be invoked
 #[inline]
 #[cold]

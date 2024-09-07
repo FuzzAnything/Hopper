@@ -116,7 +116,7 @@ downcast_rs::impl_downcast!(ObjFuzzable);
 #[test]
 fn test_get_ptr() {
     let ptr = crate::test::create_test_ptr();
-    let keys = vec![FieldKey::Pointer, FieldKey::Field("p".to_string())];
+    let keys = [FieldKey::Pointer, FieldKey::Field("p".to_string())];
     let ptr = ptr.get_ptr_by_keys(&keys[..]).unwrap();
     println!("ptr: {ptr:?}");
 }

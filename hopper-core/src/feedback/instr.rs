@@ -185,7 +185,7 @@ pub trait ShmIteratorItem {
 impl<'a, T: ShmIteratorItem> Iterator for ShmBufIter<'a, T> {
     type Item = &'a T;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.offset >= self.len {
+        if self.offset >= self.len || self.offset >= self.list.len() {
             return None;
         }
         let ele = &self.list[self.offset];

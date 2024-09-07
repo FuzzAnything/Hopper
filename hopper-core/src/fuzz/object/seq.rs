@@ -376,7 +376,7 @@ fn assign_buf_for_cmp_fn_ptr<T: AssignBuf + ObjGenerate + Debug>(
 /// How to assgin a buffer to a list : Vec or Array
 trait AssignBuf {
     fn assign_buf(&mut self, offset: usize, buf: &[u8], state: &mut ObjectState);
-    fn zeroed(&mut self);
+    // fn zeroed(&mut self);
 }
 
 impl<T: ObjGenerate + ObjValue, const N: usize> AssignBuf for [T; N] {
@@ -397,12 +397,14 @@ impl<T: ObjGenerate + ObjValue, const N: usize> AssignBuf for [T; N] {
         }
     }
 
+    /* 
     fn zeroed(&mut self) {
         // ATTN: zero is unsafe
         for v in self {
             *v = unsafe { std::mem::zeroed() };
         }
     }
+    */
 }
 
 impl<T: ObjGenerate + ObjValue> AssignBuf for Vec<T> {
@@ -423,11 +425,13 @@ impl<T: ObjGenerate + ObjValue> AssignBuf for Vec<T> {
         }
     }
 
+    /* 
     fn zeroed(&mut self) {
         for v in self {
             *v = unsafe { std::mem::zeroed() };
         }
     }
+    */
 }
 
 /// Create element for slice

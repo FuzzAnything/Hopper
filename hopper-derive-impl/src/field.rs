@@ -42,11 +42,7 @@ impl<'a> FieldExt<'a> {
     }
 
     pub fn init_phantom(&self, field_name: &str, ty: &Type) -> TokenStream {
-        let ph = if cfg!(feature = "std") {
-            my_quote!(::std::marker::PhantomData)
-        } else {
-            my_quote!(::core::marker::PhantomData)
-        };
+        let ph =  my_quote!(::std::marker::PhantomData);
         my_quote!({
             let state = state.add_child(#field_name, std::any::type_name::<#ty>()).last_child()?;
             state.done_deterministic_itself();
@@ -455,11 +451,7 @@ pub fn struct_deserialize_body(fields: &[FieldExt], unit: bool, named: bool) -> 
         let ty = f.ty;
         let header = format!("{field}:");
         let init = if f.is_phantom_data() {
-            if cfg!(feature = "std") {
-                my_quote!(::std::marker::PhantomData)
-            } else {
-                my_quote!(::core::marker::PhantomData)
-            }
+            my_quote!(::std::marker::PhantomData)
         } else {
             my_quote!({
                 #de_ident.eat_token(#header)?;

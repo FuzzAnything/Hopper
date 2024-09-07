@@ -1,7 +1,7 @@
 use eyre::ContextCompat;
 use hopper_derive::Serde;
+use std::fmt;
 use std::fmt::Display;
-use std::fmt::Write as _;
 
 use crate::{
     config,
@@ -178,21 +178,18 @@ impl SanitizeResult {
     }
 }
 
-impl ToString for SanitizeResult {
-    fn to_string(&self) -> String {
-        let mut buf = String::new();
+impl Display for SanitizeResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.cause.is_empty() {
-            return buf;
+            return Ok(());
         }
-        let _ = writeln!(
-            buf,
+        writeln!(f, 
             "<SANITIZER> Program crashes or hangs may be due to the following reasons: "
-        );
+        )?;
         for cause in &self.cause {
-            let _ = writeln!(buf, "\t* {cause}");
+            writeln!(f, "\t* {cause}")?;
         }
-        buf.push('\n');
-        buf
+        Ok(())
     }
 }
 

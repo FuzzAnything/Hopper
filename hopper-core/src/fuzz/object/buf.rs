@@ -526,7 +526,7 @@ fn parse_dictionary(buf: &[u8]) -> Vec<(Option<String>, Vec<u8>)> {
             continue;
         }
         l = &l[1..];
-        if let Some(pos) = l.find('"') {
+        if let Some(pos) = l.rfind('"') {
             l = &l[..pos];
         } else {
             continue;

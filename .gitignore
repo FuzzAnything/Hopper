@@ -10,3 +10,4 @@ install/
 core.*
 *.data
 *.log
+build/

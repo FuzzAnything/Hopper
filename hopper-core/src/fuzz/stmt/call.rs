@@ -132,7 +132,7 @@ impl StmtMutate for CallStmt {
         // avoid try context again and again
         // we only use it in mutating seed program that generated from nothing
         if program.parent != Some(program.id) {
-            self.det_index.replace(std::usize::MAX);
+            self.det_index.replace(usize::MAX);
             return Ok(MutateOperator::nop());
         }
         // add different context

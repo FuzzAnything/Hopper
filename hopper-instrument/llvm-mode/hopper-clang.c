@@ -78,6 +78,38 @@ static void find_obj(u8* argv0) {
 
     ck_free(tmp);
     ck_free(dir);
+  } else {
+    char* procname = NULL;
+#if defined(__FreeBSD__) || defined(__DragonFly__)
+    procname = "/proc/curproc/file";
+#elif defined(__linux__) || defined(__ANDROID__)
+    procname = "/proc/self/exe";
+#elif defined(__NetBSD__)
+    procname = "/proc/curproc/exe";
+#endif
+    if (procname) {
+#define PATH_MAX 4096
+      char exepath[PATH_MAX];
+      ssize_t exepath_len = readlink(procname, exepath, sizeof(exepath));
+      if (exepath_len > 0 && exepath_len < PATH_MAX) {
+        exepath[exepath_len] = 0;
+        slash = strrchr(exepath, '/');
+
+        if (slash) {
+          *slash = 0;
+          tmp = alloc_printf("%s/libHopperPass.so", exepath);
+
+          if (!access(tmp, R_OK)) {
+            obj_path = exepath;
+            ck_free(tmp);
+            return;
+          }
+
+          ck_free(tmp);
+          ck_free(exepath);
+        }
+      }
+    }
   }
 
   FATAL("Unable to find 'libHopperPass.so'. Please set HOPPER_PATH");
@@ -235,6 +267,10 @@ static void edit_params(u32 argc, char** argv) {
 /* Main entry point */
 
 int main(int argc, char** argv) {
+#ifndef __ANDROID__
+  find_obj(argv[0]);
+#endif
+
   if (argc < 2) {
     SAYF(
         "\n"
@@ -261,13 +297,9 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
-#ifndef __ANDROID__
-  find_obj(argv[0]);
-#endif
-
   edit_params(argc, argv);
-  
- for (int i = 0; i < cc_par_cnt; i++) {
+
+  for (int i = 0; i < cc_par_cnt; i++) {
     printf("%s ", cc_params[i]);
   }
   printf("\n");
