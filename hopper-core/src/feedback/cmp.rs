@@ -62,9 +62,9 @@ pub struct CmpBuf {
 
 impl CmpOperation {
     /// Calculate a state for the cmp
-    /// == : 0x04
-    /// >  : 0x01
-    /// <  : 0x02
+    /// `==` : 0x04
+    /// `>`  : 0x01
+    /// `<`  : 0x02
     pub fn calculate_state(&self) -> u32 {
         if self.is_instcmp() {
             let operand1 = { self.operand1 };
@@ -109,9 +109,9 @@ impl CmpOperation {
     }
 
     /// Check if cmp is solved
-    /// == and != : > 0x04
-    /// > and <   : 0x03
-    /// there is no >= or <= in asm level
+    /// `==` and `!=` : > 0x04
+    /// `>` and `<`  : 0x03
+    /// there is no `>=` or `<=` in asm level
     pub fn is_solved(&self) -> bool {
         self.state > 0x04 || self.state == 0x03
     }

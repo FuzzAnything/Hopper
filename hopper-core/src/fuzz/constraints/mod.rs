@@ -246,7 +246,7 @@ impl Constraints {
     /// Get function's mut constraint
     #[inline]
     pub fn get_func_constraint_mut(&mut self, f_name: &str) -> eyre::Result<&mut FuncConstraint> {
-        if self.func_constraints.get(f_name).is_none() {
+        if !self.func_constraints.contains_key(f_name) {
             self.init_func_constraint(f_name)?;
         }
         self.func_constraints
@@ -263,7 +263,7 @@ impl Constraints {
     }
 
     pub fn init_type_constraint(&mut self, type_name: &str) -> eyre::Result<()> {
-        if self.type_constraints.get(type_name).is_some() {
+        if self.type_constraints.contains_key(type_name) {
             return Ok(());
         }
         let tc = TypeConstraint::init(type_name);

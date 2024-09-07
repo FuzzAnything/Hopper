@@ -54,8 +54,9 @@ pub fn add_hooks() -> eyre::Result<()> {
 }
 
 // get_return_addrss
-//#![feature(link_llvm_intrinsics)]
-#[cfg(feature = "unstable")]
+//#[cfg(feature = "unstable")]
+// #![feature(link_llvm_intrinsics)]
+/* 
 extern {
     #[link_name = "llvm.returnaddress"]
     fn return_address(a: i32) -> *const u8;
@@ -67,7 +68,10 @@ macro_rules! caller_address {
         unsafe { return_address(0) }
     };
 }
+
 #[cfg(not(feature = "unstable"))]
+*/
+
 macro_rules! caller_address {
     () => {
         0
