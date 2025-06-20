@@ -32,7 +32,7 @@ fi
 
 set -e
 
-VERSION=811642cf744ba1726fc34851dc44f4c4df436ce7
+VERSION=fa170ebbaaba8c05465aba99df4a6b9c3cd807c6
 
 SOURCE_DIR=$(pwd)
 PREFIX=${PREFIX:-install}
@@ -100,14 +100,14 @@ echo -e "${PREFIX}/tmp/e9patch-${VERSION}/e9compile.sh hopper-e9-rt.c -I ${PREFI
     -I ${PREFIX}/tmp/e9patch-${VERSION}/src/e9patch/ -DNO_GLIBC=1"
 $PREFIX/tmp/e9patch-$VERSION/e9compile.sh hopper-e9-rt.c -I $PREFIX/tmp/e9patch-$VERSION/examples/ \
     -I $PREFIX/tmp/e9patch-$VERSION/src/e9patch/ -DNO_GLIBC=1
-rm hopper-e9-rt.o
+# rm hopper-e9-rt.o
 chmod a-x hopper-e9-rt
 mv hopper-e9-rt $PREFIX/hopper-e9-rt-elf
 # build the runtime for PE:
 echo -e "${GREEN}$0${OFF}: remember to change HOPPER_PATH_SHMID and HOPPER_INSTR_SHMID in windows.c"
 $PREFIX/tmp/e9patch-$VERSION/e9compile.sh hopper-e9-rt.c -I $PREFIX/tmp/e9patch-$VERSION/examples/ \
     -I $PREFIX/tmp/e9patch-$VERSION/src/e9patch/ -DWINDOWS -mabi=ms
-rm hopper-e9-rt.o
+# rm hopper-e9-rt.o
 chmod a-x hopper-e9-rt
 mv hopper-e9-rt $PREFIX/hopper-e9-rt-pe
 

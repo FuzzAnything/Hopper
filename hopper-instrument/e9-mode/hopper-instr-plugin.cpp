@@ -445,7 +445,7 @@ bool is_ebp(Register reg) {
 }
 
 bool is_valid_reg(Register reg) {
-  return reg != REGISTER_NONE && reg != REGISTER_EFLAGS && reg < NUM_REG;
+  return reg != REGISTER_NONE && reg != REGISTER_RFLAGS && reg < NUM_REG;
 }
 
 int get_mem_off(MemOpInfo &mem_info) {
@@ -456,7 +456,7 @@ int get_mem_off(MemOpInfo &mem_info) {
 
 void set_reg_taint(Register reg, bool flag) {
   reg_taint[reg] = flag;
-  if (reg == REGISTER_RIP || reg == REGISTER_EIP || reg == REGISTER_IP || reg == REGISTER_EFLAGS) {
+  if (reg == REGISTER_RIP || reg == REGISTER_EIP || reg == REGISTER_IP || reg == REGISTER_RFLAGS) {
     return;
   }
   if (reg >= REGISTER_EAX) {
