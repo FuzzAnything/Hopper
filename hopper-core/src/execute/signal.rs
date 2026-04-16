@@ -7,7 +7,13 @@ use crate::{CanaryInfo, FuzzProgram};
 
 pub fn install_signal_handler() {
     // static mut PREV_HANDLER: extern "C" fn(libc::c_int, *mut libc::siginfo_t, *mut libc::c_void) = std::ptr::null_mut();
-    if cfg!(test) || cfg!(not(any(feature = "e9_mode", feature = "llvm_mode"))) {
+    if cfg!(test)
+        || cfg!(not(any(
+            feature = "e9_mode",
+            feature = "llvm_mode",
+            feature = "cov_mode"
+        )))
+    {
         return;
     }
     use nix::sys::signal;
