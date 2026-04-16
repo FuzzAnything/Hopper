@@ -43,7 +43,7 @@ if (NOT TARGET LLVMPassConfig)
     )
 endif()
 
-set (CMAKE_CXX_STANDARD 14)
+set (CMAKE_CXX_STANDARD 17)
 if(APPLE)
     # User teor2345 reports that this is required to make things work on MacOS X.
     set (CMAKE_MODULE_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -Wl,-flat_namespace -Wl,-undefined,suppress")
