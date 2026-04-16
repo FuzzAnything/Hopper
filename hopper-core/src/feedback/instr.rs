@@ -45,7 +45,7 @@ impl SHMable for InstrList {
     fn buf_size() -> usize {
         config::CMP_LIST_AREA + config::MEM_LIST_AREA + 64
     }
-    #[cfg(feature = "llvm_mode")]
+    #[cfg(any(feature = "llvm_mode", feature = "cov_mode"))]
     fn post_hander(ptr: *const u8) {
         let ptr = ptr as *const InstrList;
         unsafe { 

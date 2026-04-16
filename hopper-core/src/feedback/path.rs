@@ -23,7 +23,7 @@ impl SHMable for Path {
     fn buf_size() -> usize {
         config::BRANCHES_SIZE
     }
-    #[cfg(feature = "llvm_mode")]
+    #[cfg(any(feature = "llvm_mode", feature = "cov_mode"))]
     fn post_hander(ptr: *const u8) {
         unsafe {
             __hopper_area_ptr = ptr;
@@ -36,10 +36,10 @@ impl SHMable for Path {
     }
 }
 
-#[cfg(feature = "llvm_mode")]
+#[cfg(any(feature = "llvm_mode", feature = "cov_mode"))]
 static mut __HOPPER_AREA_INITIAL: [u8; BRANCHES_SIZE] = [255; BRANCHES_SIZE];
 
-#[cfg(feature = "llvm_mode")]
+#[cfg(any(feature = "llvm_mode", feature = "cov_mode"))]
 #[no_mangle]
 pub static mut __hopper_area_ptr: *const u8 = unsafe { &__HOPPER_AREA_INITIAL[0] as *const u8 };
 

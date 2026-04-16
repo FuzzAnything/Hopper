@@ -75,7 +75,10 @@ fn instrument(library: &Path, output: &Path, config: &Config, lib_info: &BinaryI
         }
     }
     #[cfg(target_os = "linux")]
-    {
+    if let InstrumentType::Cov = config.instrument {
+        // Do not patch the library in cov mode, as it corrupts the PT_NOTE segment 
+        // which makes __llvm_write_binary_ids crash.
+    } else {
         let output_lib_path = output_lib.to_str().context("fail to be str")?;
         patch::patchelf_set_so_name(&lib_name, output_lib_path)?;
         patch::remove_prev_needed(&config.library, output_lib_path, lib_info)?;

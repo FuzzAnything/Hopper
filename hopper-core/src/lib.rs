@@ -29,6 +29,7 @@ fn init_harness() -> eyre::Result<()> {
     execute::install_signal_handler();
     reserve_fds();
     read_existing_opaue()?;
+    #[cfg(not(feature = "cov_mode"))]
     add_hooks()?;
     Ok(())
 }

@@ -377,7 +377,7 @@ const fn map_size_pow2_var() -> usize {
 
 /// use canary
 const fn use_canary() -> bool {
-    cfg!(any(feature = "e9_mode", feature = "llvm_mode"))
+    cfg!(any(feature = "e9_mode", feature = "llvm_mode", feature = "cov_mode"))
 }
 
 /// Get file path in output dir
