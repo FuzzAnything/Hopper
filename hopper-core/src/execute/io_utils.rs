@@ -36,3 +36,15 @@ pub fn trim_newline(s: &mut String) {
         }
     }
 }
+
+/// Check if an eyre error is caused by a socket timeout
+pub fn is_timeout_error(error: &eyre::Report) -> bool {
+    if let Some(io_err) = error.root_cause().downcast_ref::<std::io::Error>() {
+        matches!(
+            io_err.kind(),
+            std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+        )
+    } else {
+        false
+    }
+}

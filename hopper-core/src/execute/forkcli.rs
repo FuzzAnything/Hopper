@@ -122,23 +122,39 @@ impl ForkCli {
                 .write_all(program.serialize()?.as_bytes())
                 .context("fail to send program (fast)")?;
             writer.flush().context("fail to flush send (fast)")?;
-            let mut status: StatusType = io_utils::receive_line(reader).with_context(|| {
-                format!(
-                    "program: {program}\n history: {}",
-                    self.history.serialize().unwrap()
-                )
-            })?;
+            let mut status: StatusType = match io_utils::receive_line(reader) {
+                Ok(s) => s,
+                Err(e) if io_utils::is_timeout_error(&e) => {
+                    //crate::log!(warn, "timeout reading status from fast server, treating as timeout");
+                    self.history.clear();
+                    return Ok(StatusType::Timeout);
+                }
+                Err(e) => Err(e).with_context(|| {
+                    format!(
+                        "program: {program}\n history: {}",
+                        self.history.serialize().unwrap()
+                    )
+                })?,
+            };
             compiler_fence(Ordering::SeqCst);
             crate::log!(trace, "receive status {:?} from fork server (fast)", status);
             self.usage.add_time(&t);
             let mut wait_outer_status = false;
             if status.is_loop_end() {
-                status = io_utils::receive_line(reader).with_context(|| {
-                    format!(
-                        "program: {program}\n history: {}",
-                        self.history.serialize().unwrap()
-                    )
-                })?;
+                status = match io_utils::receive_line(reader) {
+                    Ok(s) => s,
+                    Err(e) if io_utils::is_timeout_error(&e) => {
+                        crate::log!(warn, "timeout reading outer status from fast server, treating as timeout");
+                        self.history.clear();
+                        return Ok(StatusType::Timeout);
+                    }
+                    Err(e) => Err(e).with_context(|| {
+                        format!(
+                            "program: {program}\n history: {}",
+                            self.history.serialize().unwrap()
+                        )
+                    })?,
+                };
                 wait_outer_status = true;
             } else if !status.is_normal() {
                 // In fast mode, non-normal inner status breaks the loop in server side.
@@ -147,8 +163,15 @@ impl ForkCli {
             }
             if wait_outer_status {
                 // wait for outer ping for finish process
-                let _: StatusType =
-                    io_utils::receive_line(reader).context("stop process status")?;
+                let _: StatusType = match io_utils::receive_line(reader) {
+                    Ok(s) => s,
+                    Err(e) if io_utils::is_timeout_error(&e) => {
+                        crate::log!(warn, "timeout reading stop status from fast server, treating as timeout");
+                        self.history.clear();
+                        return Ok(StatusType::Timeout);
+                    }
+                    Err(e) => Err(e).context("stop process status")?,
+                };
                 self.history.clear();
             }
             if status.is_normal() {
