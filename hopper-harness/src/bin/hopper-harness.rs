@@ -10,49 +10,6 @@
 
 use std::path::Path;
 
-#[cfg(all(feature = "cov_mode", target_os = "linux"))]
-mod cov_profile_signal {
-    use std::sync::atomic::{AtomicBool, Ordering};
-
-    static HANDLING: AtomicBool = AtomicBool::new(false);
-
-    unsafe fn try_write_profile() {
-        let symbol = libc::dlsym(
-            libc::RTLD_DEFAULT,
-            b"__llvm_profile_write_file\0".as_ptr() as *const libc::c_char,
-        );
-        if !symbol.is_null() {
-            let func: unsafe extern "C" fn() -> i32 = std::mem::transmute(symbol);
-            let _ = func();
-        }
-    }
-
-    extern "C" fn handler(sig: libc::c_int) {
-        if !HANDLING.swap(true, Ordering::SeqCst) {
-            unsafe {
-                try_write_profile();
-            }
-        }
-        unsafe {
-            libc::signal(sig, libc::SIG_DFL);
-            libc::raise(sig);
-        }
-    }
-
-    pub fn install_if_enabled() {
-        if std::env::var_os("HOPPER_COV_DUMP_ON_CRASH").is_none() {
-            return;
-        }
-        unsafe {
-            libc::signal(libc::SIGSEGV, handler as libc::sighandler_t);
-            libc::signal(libc::SIGABRT, handler as libc::sighandler_t);
-            libc::signal(libc::SIGBUS, handler as libc::sighandler_t);
-            libc::signal(libc::SIGILL, handler as libc::sighandler_t);
-            libc::signal(libc::SIGFPE, handler as libc::sighandler_t);
-        }
-    }
-}
-
 fn init_logger(name: &str) {
     use flexi_logger::*;
     let mut output_file = FileSpec::default().basename(name);
@@ -102,8 +59,6 @@ pub fn main() -> eyre::Result<()> {
             .unwrap()
             .start()
             .unwrap();
-        #[cfg(all(feature = "cov_mode", target_os = "linux"))]
-        cov_profile_signal::install_if_enabled();
         let infer_crash = std::env::args().any(|f| f == "--infer");
         if infer_crash {
             hopper::global_gadgets::get_mut_instance().build_arg_and_ret_graph();
