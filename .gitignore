@@ -4,10 +4,14 @@ Cargo.lock
 *.so
 *.dSYM
 *.dylib
-output/
-output_cov/
+output*/
 install/
 core.*
 *.data
 *.log
 build/
+default.profraw
+results/
+hopper.config
+custom.rule
+seeds/
