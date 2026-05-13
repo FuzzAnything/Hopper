@@ -15,6 +15,9 @@ pub struct ForkCli {
     reader: BufReader<UnixStream>,
     writer: BufWriter<UnixStream>,
     fast_io: Option<(BufReader<UnixStream>, BufWriter<UnixStream>)>,
+    fast_timeout_streak: usize,
+    fast_disabled_until: usize,
+    fast_exec_seq: usize,
     pub history: Vec<FuzzProgram>,
     pub usage: TimeUsage,
 }
@@ -47,6 +50,9 @@ impl ForkCli {
         );
         if let Ok(context) = std::env::var(config::API_INSENSITIVE_COV) {
             envs.insert(config::API_INSENSITIVE_COV, context);
+        }
+        if let Ok(ld_library_path) = std::env::var("LD_LIBRARY_PATH") {
+            envs.insert("LD_LIBRARY_PATH", ld_library_path);
         }
         crate::log!(info, "Run harness: {:?}, envs: {:?}", &harness, envs);
         config::create_dir_in_output_if_not_exist(config::HARNESS_WORK_DIR)?;
@@ -101,6 +107,9 @@ impl ForkCli {
             reader: BufReader::new(socket.try_clone()?),
             writer: BufWriter::new(socket),
             fast_io,
+            fast_timeout_streak: 0,
+            fast_disabled_until: 0,
+            fast_exec_seq: 0,
             history: vec![],
             usage: TimeUsage::default(),
         };
@@ -109,8 +118,16 @@ impl ForkCli {
     }
 
     pub fn execute_program_fast(&mut self, program: &FuzzProgram) -> eyre::Result<StatusType> {
+        self.fast_exec_seq = self.fast_exec_seq.saturating_add(1);
         if self.history.len() >= crate::config::get_fast_execute_loop() {
             self.history.clear();
+        }
+        if self.fast_io.is_some() && self.fast_exec_seq < self.fast_disabled_until {
+            return self.execute_program(program);
+        }
+        if self.fast_disabled_until > 0 && self.fast_exec_seq >= self.fast_disabled_until {
+            crate::log!(info, "try to re-enable fast channel after cooldown");
+            self.fast_disabled_until = 0;
         }
         if let Some((reader, writer)) = &mut self.fast_io {
             let t = std::time::Instant::now();
@@ -121,13 +138,38 @@ impl ForkCli {
             writer
                 .write_all(program.serialize()?.as_bytes())
                 .context("fail to send program (fast)")?;
-            writer.flush().context("fail to flush send (fast)")?;
+            if let Err(e) = writer.flush().context("fail to flush send (fast)") {
+                if io_utils::is_timeout_error(&e) {
+                    crate::log!(warn, "fast IPC timeout on flush, fallback to normal executor");
+                    self.history.clear();
+                    self.fast_timeout_streak = self.fast_timeout_streak.saturating_add(1);
+                    let timeout_streak_limit = config::get_fast_timeout_streak_limit();
+                    if self.fast_timeout_streak >= timeout_streak_limit {
+                        let recovery_interval = config::get_fast_recovery_interval();
+                        self.fast_timeout_streak = 0;
+                        self.fast_disabled_until =
+                            self.fast_exec_seq.saturating_add(recovery_interval);
+                        crate::log!(warn, "disable fast channel for {} rounds", recovery_interval);
+                    }
+                    return self.execute_program(program);
+                }
+                return Err(e);
+            }
             let mut status: StatusType = match io_utils::receive_line(reader) {
                 Ok(s) => s,
                 Err(e) if io_utils::is_timeout_error(&e) => {
-                    //crate::log!(warn, "timeout reading status from fast server, treating as timeout");
+                    crate::log!(warn, "fast IPC timeout on first status, fallback to normal executor");
                     self.history.clear();
-                    return Ok(StatusType::Timeout);
+                    self.fast_timeout_streak = self.fast_timeout_streak.saturating_add(1);
+                    let timeout_streak_limit = config::get_fast_timeout_streak_limit();
+                    if self.fast_timeout_streak >= timeout_streak_limit {
+                        let recovery_interval = config::get_fast_recovery_interval();
+                        self.fast_timeout_streak = 0;
+                        self.fast_disabled_until =
+                            self.fast_exec_seq.saturating_add(recovery_interval);
+                        crate::log!(warn, "disable fast channel for {} rounds", recovery_interval);
+                    }
+                    return self.execute_program(program);
                 }
                 Err(e) => Err(e).with_context(|| {
                     format!(
@@ -144,9 +186,18 @@ impl ForkCli {
                 status = match io_utils::receive_line(reader) {
                     Ok(s) => s,
                     Err(e) if io_utils::is_timeout_error(&e) => {
-                        crate::log!(warn, "timeout reading outer status from fast server, treating as timeout");
+                        crate::log!(warn, "fast IPC timeout on outer status, fallback to normal executor");
                         self.history.clear();
-                        return Ok(StatusType::Timeout);
+                        self.fast_timeout_streak = self.fast_timeout_streak.saturating_add(1);
+                        let timeout_streak_limit = config::get_fast_timeout_streak_limit();
+                        if self.fast_timeout_streak >= timeout_streak_limit {
+                            let recovery_interval = config::get_fast_recovery_interval();
+                            self.fast_timeout_streak = 0;
+                            self.fast_disabled_until =
+                                self.fast_exec_seq.saturating_add(recovery_interval);
+                            crate::log!(warn, "disable fast channel for {} rounds", recovery_interval);
+                        }
+                        return self.execute_program(program);
                     }
                     Err(e) => Err(e).with_context(|| {
                         format!(
@@ -166,9 +217,18 @@ impl ForkCli {
                 let _: StatusType = match io_utils::receive_line(reader) {
                     Ok(s) => s,
                     Err(e) if io_utils::is_timeout_error(&e) => {
-                        crate::log!(warn, "timeout reading stop status from fast server, treating as timeout");
+                        crate::log!(warn, "fast IPC timeout on stop status, fallback to normal executor");
                         self.history.clear();
-                        return Ok(StatusType::Timeout);
+                        self.fast_timeout_streak = self.fast_timeout_streak.saturating_add(1);
+                        let timeout_streak_limit = config::get_fast_timeout_streak_limit();
+                        if self.fast_timeout_streak >= timeout_streak_limit {
+                            let recovery_interval = config::get_fast_recovery_interval();
+                            self.fast_timeout_streak = 0;
+                            self.fast_disabled_until =
+                                self.fast_exec_seq.saturating_add(recovery_interval);
+                            crate::log!(warn, "disable fast channel for {} rounds", recovery_interval);
+                        }
+                        return self.execute_program(program);
                     }
                     Err(e) => Err(e).context("stop process status")?,
                 };
@@ -179,6 +239,7 @@ impl ForkCli {
             } else {
                 self.history.clear();
             }
+            self.fast_timeout_streak = 0;
             Ok(status)
         } else {
             self.execute_program(program)
@@ -279,6 +340,10 @@ impl ForkCli {
     fn receive_status(&mut self) -> eyre::Result<StatusType> {
         match io_utils::receive_line(&mut self.reader) {
             Ok(val) => Ok(val),
+            Err(err) if io_utils::is_timeout_error(&err) => {
+                crate::log!(warn, "IPC timeout while receiving status, mark as Ignore");
+                Ok(StatusType::Ignore)
+            }
             Err(err) => {
                 eyre::bail!("fail to receive status : {:?}", err);
             }
@@ -351,6 +416,9 @@ mod tests {
                 BufReader::new(fast_cli.try_clone().unwrap()),
                 BufWriter::new(fast_cli),
             )),
+            fast_timeout_streak: 0,
+            fast_disabled_until: 0,
+            fast_exec_seq: 0,
             history: vec![],
             usage: TimeUsage::default(),
         };
@@ -402,6 +470,9 @@ mod tests {
                 BufReader::new(fast_cli.try_clone().unwrap()),
                 BufWriter::new(fast_cli),
             )),
+            fast_timeout_streak: 0,
+            fast_disabled_until: 0,
+            fast_exec_seq: 0,
             history: vec![],
             usage: TimeUsage::default(),
         };

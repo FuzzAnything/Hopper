@@ -429,3 +429,21 @@ pub fn get_fast_execute_loop() -> usize {
     pub static ENABLE_FAST: OnceCell<usize> = OnceCell::new();
     *ENABLE_FAST.get_or_init(|| std::env::var(FAST_EXECUTE_LOOP).map_or(10, |s| s.parse().unwrap()))
 }
+
+/// Get fast-channel consecutive timeout threshold before cooldown.
+pub static FAST_TIMEOUT_STREAK_LIMIT: &str = "HOPPER_FAST_TIMEOUT_STREAK_LIMIT";
+pub fn get_fast_timeout_streak_limit() -> usize {
+    pub static FAST_TIMEOUT_STREAK: OnceCell<usize> = OnceCell::new();
+    *FAST_TIMEOUT_STREAK.get_or_init(|| {
+        std::env::var(FAST_TIMEOUT_STREAK_LIMIT).map_or(3, |s| s.parse().unwrap_or(3))
+    })
+}
+
+/// Get cooldown rounds before retrying fast channel.
+pub static FAST_RECOVERY_INTERVAL: &str = "HOPPER_FAST_RECOVERY_INTERVAL";
+pub fn get_fast_recovery_interval() -> usize {
+    pub static FAST_RECOVERY: OnceCell<usize> = OnceCell::new();
+    *FAST_RECOVERY.get_or_init(|| {
+        std::env::var(FAST_RECOVERY_INTERVAL).map_or(256, |s| s.parse().unwrap_or(256))
+    })
+}
