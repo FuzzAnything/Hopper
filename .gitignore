@@ -5,15 +5,11 @@ Cargo.lock
 *.dSYM
 *.dylib
 output*/
-output_zlib/
-output_cov_zlib/
-output_cov/
 install/
 core.*
 *.data
 *.log
 build/
-default.profraw
 results/
 hopper.config
 custom.rule
