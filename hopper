@@ -153,19 +153,15 @@ cov)
     info "worksapce: $OUTPUT_DIR, seed: $SEED_DIR"
     PROFILE_DIR=$OUTPUT_DIR/profile
     COV_DIR=$OUTPUT_DIR/cov
-    # Ensure runtime scratch dirs exist for file-based statements during coverage.
-    mkdir -p $OUTPUT_DIR/misc/tmp
     rm -rf $PROFILE_DIR
-    mkdir -p $PROFILE_DIR
     export RUST_LOG=error
-    export LD_LIBRARY_PATH=$OUTPUT_DIR:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=$OUTPUT_DIR
     export HOPPER_TIMEOUT_LIMIT=5
-    export HOPPER_COV_DUMP_ON_CRASH=1
     for FILE in ${SEED_DIR}/id_*; do
         printf "iterate file $FILE: "
         FILE_BASE=$(basename "$FILE") 
         {
-            LLVM_PROFILE_FILE="${PROFILE_DIR}/${FILE_BASE}.%m.profraw" $OUTPUT_DIR/bin/hopper-harness $FILE --execute
+            LLVM_PROFILE_FILE="${PROFILE_DIR}/${FILE_BASE}.%m.profraw" $OUTPUT_DIR/bin/hopper-harness $FILE --execute > /dev/null 2>&1
             info "success"
         } || { warn 'program execute failed'; }
         set -e
