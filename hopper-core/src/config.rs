@@ -447,3 +447,13 @@ pub fn get_fast_recovery_interval() -> usize {
         std::env::var(FAST_RECOVERY_INTERVAL).map_or(256, |s| s.parse().unwrap_or(256))
     })
 }
+
+/// Network isolation is enabled by default via unshare(CLONE_NEWNET) for the fork server.
+/// This prevents fuzzed network libraries from sending garbage requests to the real network.
+/// Set HOPPER_DISABLE_NET_ISOLATE to disable network isolation.
+pub static DISABLE_NET_ISOLATE_VAR: &str = "HOPPER_DISABLE_NET_ISOLATE";
+pub fn get_net_isolate() -> bool {
+    pub static NET_ISOLATE: OnceCell<bool> = OnceCell::new();
+    *NET_ISOLATE.get_or_init(|| std::env::var(DISABLE_NET_ISOLATE_VAR).is_err())
+}
+
