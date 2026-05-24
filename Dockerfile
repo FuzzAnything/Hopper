@@ -25,11 +25,11 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --de
 #    echo '[source.tencent]' >> ${CARGO_HOME}/config && \
 #    echo 'registry = "http://mirrors.tencent.com/rust/index"' >> ${CARGO_HOME}/config
 
-RUN mkdir -p /hopper
-COPY . /hopper
-WORKDIR /hopper
+#RUN mkdir -p /hopper
+#COPY . /hopper
+#WORKDIR /hopper
 
-RUN ./build.sh
+#RUN ./build.sh
 
 # RUN mkdir /llvm
 # ENV PATH=/llvm/bin:$PATH
