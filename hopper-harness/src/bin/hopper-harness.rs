@@ -13,7 +13,7 @@ use std::path::Path;
 fn init_logger(name: &str) {
     use flexi_logger::*;
     let mut output_file = FileSpec::default().basename(name);
-    output_file = output_file.directory(hopper::OUTPUT_DIR);
+    output_file = output_file.directory(hopper::effective_output_dir());
     Logger::try_with_env_or_str("info")
         .unwrap() // Write all error, warn, and info messages
         .log_to_file(output_file)

@@ -25,7 +25,7 @@ pub struct ForkCli {
 impl ForkCli {
     pub fn new(feedback: &Feedback) -> eyre::Result<Self> {
         let config = config::get_config();
-        let harness = PathBuf::from(&config::OUTPUT_DIR)
+        let harness = PathBuf::from(config::effective_output_dir())
             .join("bin")
             .join("hopper-harness");
         let socket_path = socket_path();
