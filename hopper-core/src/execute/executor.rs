@@ -153,6 +153,11 @@ impl Executor {
                     "fork time: {} micro seconds",
                     start_at.elapsed().as_micros()
                 );
+                // Isolate the child into a new network namespace so that
+                // fuzzed code cannot reach the real network.
+                if let Err(e) = super::limit::apply_net_isolate() {
+                    crate::log!(error, "failed to apply net isolation in child: {}", e);
+                }
                 let ret = Self::execute_fn(fun);
                 // return special signal if meet some error
                 if let Err(e) = ret {
