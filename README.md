@@ -15,6 +15,13 @@ To learn more about Hopper, check out our [paper](https://arxiv.org/pdf/2309.034
 - Rust stable (>= 1.60), can be obtained using [rustup](https://rustup.rs/)
 - Clang (>= 5.0, [Install Clang](https://rust-lang.github.io/rust-bindgen/requirements.html)), [rust-bindgen](https://rust-lang.github.io/rust-bindgen/) leverages libclang to preprocess, parse, and type check C and C++ header files.
 
+### Using Docker
+You can choose to use the Dockerfile, which build the requirements and Hopper.
+```
+docker build -t hopper ./
+docker run --name hopper_dev --privileged -v $(pwd):/hopper -v /path-to-lib:/fuzz -it --rm hopper /bin/bash
+```
+
 ### Build Hopper itself
 ```sh
 ./build.sh
@@ -23,12 +30,6 @@ To learn more about Hopper, check out our [paper](https://arxiv.org/pdf/2309.034
 The script will create a `install` directory in hopper's root directory, then you can use `hopper`.
 To use the command anywhere, you can set the project directory in your PATH variable.
 
-### Using Docker
-You can choose to use the Dockerfile, which build the requirements and Hopper.
-```
-docker build -t hopper ./
-docker run --name hopper_dev --privileged -v /path-to-lib:/fuzz -it --rm hopper /bin/bash
-```
 
 ## Compile library with Hopper
 Take `csjon` for example ([More examples](./examples/)).

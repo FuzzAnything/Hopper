@@ -88,7 +88,7 @@ pub struct CallRet {
 }
 
 fn review_file_path(id: usize, kind: &str) -> std::path::PathBuf {
-    let mut path = std::path::PathBuf::from(crate::config::OUTPUT_DIR);
+    let mut path = std::path::PathBuf::from(crate::config::effective_output_dir());
     path.push(crate::config::REVIEW_DIR);
     path.push(format!("{id}_{kind}"));
     path

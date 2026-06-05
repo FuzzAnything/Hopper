@@ -25,7 +25,7 @@ pub struct ForkCli {
 impl ForkCli {
     pub fn new(feedback: &Feedback) -> eyre::Result<Self> {
         let config = config::get_config();
-        let harness = PathBuf::from(&config::OUTPUT_DIR)
+        let harness = PathBuf::from(config::effective_output_dir())
             .join("bin")
             .join("hopper-harness");
         let socket_path = socket_path();
@@ -57,17 +57,19 @@ impl ForkCli {
         crate::log!(info, "Run harness: {:?}, envs: {:?}", &harness, envs);
         config::create_dir_in_output_if_not_exist(config::HARNESS_WORK_DIR)?;
         let tmout = config.timeout_limit + 5;
-        Command::new(&harness)
-            .arg("--server")
+        let mut cmd = Command::new(&harness);
+        cmd.arg("--server")
             .envs(&envs)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .current_dir(config::output_file_path(config::HARNESS_WORK_DIR))
             .mem_limit(config.mem_limit)
             .core_limit()
-            .setsid()
-            .spawn()
-            .context("fail to spwan fork server in fuzzer")?;
+            .setsid();
+        if config::get_net_isolate() {
+            cmd.net_isolate();
+        }
+        cmd.spawn().context("fail to spwan fork server in fuzzer")?;
         crate::log!(info, "wait for acception..");
         // May block here if the client doesn't exist.
         let (socket, _) = listener.accept()?;
@@ -79,7 +81,8 @@ impl ForkCli {
         let num_fast_loop = config::get_fast_execute_loop();
         if num_fast_loop > 1 {
             envs.insert(config::FAST_EXECUTE_LOOP, num_fast_loop.to_string());
-            Command::new(&harness)
+            let mut fast_cmd = Command::new(&harness);
+            fast_cmd
                 .arg("--server")
                 .arg("--fast")
                 .envs(&envs)
@@ -88,7 +91,11 @@ impl ForkCli {
                 .current_dir(config::output_file_path(config::HARNESS_WORK_DIR))
                 .mem_limit(config.mem_limit)
                 .core_limit()
-                .setsid()
+                .setsid();
+            if config::get_net_isolate() {
+                fast_cmd.net_isolate();
+            }
+            fast_cmd
                 .spawn()
                 .context("fail to spwan fork server in fuzzer")?;
             // May block here if the client doesn't exist.

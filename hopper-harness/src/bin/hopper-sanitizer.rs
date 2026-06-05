@@ -87,7 +87,7 @@ fn sanitize_crash_by_clang_sanitizer_pc(crashes: Vec<PathBuf>) -> eyre::Result<V
             continue;
         }
         // hopper::log!(info, "{:?}", executable_path);
-        let hopper_out_dir = hopper::OUTPUT_DIR;
+        let hopper_out_dir = hopper::effective_output_dir();
         let binary = String::from(executable_path.to_str().context("path should be valid")?);
         //let binary = String::from(".") + &binary;
         let output = Command::new("setarch")

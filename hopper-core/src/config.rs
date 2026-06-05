@@ -1,6 +1,17 @@
 // --- Project setting ---
 pub const TASK_NAME: &str = task_env_var();
 pub const OUTPUT_DIR: &str = out_dir_env_var();
+
+/// Get the effective output directory.
+/// Checks HOPPER_RUNTIME_OUT_DIR env var first (for multi-instance),
+/// falls back to compile-time OUTPUT_DIR.
+pub fn effective_output_dir() -> &'static str {
+    static DIR: once_cell::sync::OnceCell<String> = once_cell::sync::OnceCell::new();
+    DIR.get_or_init(|| {
+        std::env::var("HOPPER_RUNTIME_OUT_DIR")
+            .unwrap_or_else(|_| OUTPUT_DIR.to_string())
+    })
+}
 // Use canary or not
 pub const USE_CANARY: bool = use_canary();
 // Enable set function pointer
@@ -382,7 +393,7 @@ const fn use_canary() -> bool {
 
 /// Get file path in output dir
 pub fn output_file_path(file: &str) -> std::path::PathBuf {
-    let path = std::path::PathBuf::from(OUTPUT_DIR);
+    let path = std::path::PathBuf::from(effective_output_dir());
     path.join(file)
 }
 
@@ -403,7 +414,7 @@ pub fn constraint_file_path() -> std::path::PathBuf {
 /// Get path in tmp directory
 /// fuzzer&harness is always run at `output`'s directory in shell
 pub fn tmp_file_path(file: &str) -> std::path::PathBuf {
-    let mut path = std::path::PathBuf::from(crate::config::OUTPUT_DIR);
+    let mut path = std::path::PathBuf::from(crate::config::effective_output_dir());
     path.push(crate::config::TMP_DIR);
     path.push(file);
     path
@@ -447,3 +458,13 @@ pub fn get_fast_recovery_interval() -> usize {
         std::env::var(FAST_RECOVERY_INTERVAL).map_or(256, |s| s.parse().unwrap_or(256))
     })
 }
+
+/// Network isolation is enabled by default via unshare(CLONE_NEWNET) for the fork server.
+/// This prevents fuzzed network libraries from sending garbage requests to the real network.
+/// Set HOPPER_DISABLE_NET_ISOLATE to disable network isolation.
+pub static DISABLE_NET_ISOLATE_VAR: &str = "HOPPER_DISABLE_NET_ISOLATE";
+pub fn get_net_isolate() -> bool {
+    pub static NET_ISOLATE: OnceCell<bool> = OnceCell::new();
+    *NET_ISOLATE.get_or_init(|| std::env::var(DISABLE_NET_ISOLATE_VAR).is_err())
+}
+

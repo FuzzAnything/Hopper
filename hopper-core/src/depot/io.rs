@@ -120,7 +120,7 @@ impl DepotDir {
 /// Initilize depot's directories
 pub fn init_depot_dirs() -> eyre::Result<(DepotDir, DepotDir, DepotDir)> {
     crate::log!(info, "init depot dir..");
-    let out_dir = PathBuf::from(config::OUTPUT_DIR);
+    let out_dir = PathBuf::from(config::effective_output_dir());
     let inputs_dir = out_dir.join(config::INPUTS_DIR);
     let hangs_dir = out_dir.join(config::HANGS_DIR);
     let crashes_dir = out_dir.join(config::CRASHES_DIR);
@@ -136,7 +136,7 @@ pub fn init_depot_dirs() -> eyre::Result<(DepotDir, DepotDir, DepotDir)> {
 
 /// Read program from queue
 pub fn read_input_in_queue(id: usize) -> eyre::Result<FuzzProgram> {
-    let out_dir = PathBuf::from(config::OUTPUT_DIR);
+    let out_dir = PathBuf::from(config::effective_output_dir());
     let file_name = format!("id_{id:06}");
     let f = out_dir.join(config::INPUTS_DIR).join(file_name);
     let buf = std::fs::read_to_string(f)?;

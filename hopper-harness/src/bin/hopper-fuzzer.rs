@@ -6,7 +6,7 @@ fn init_logger() {
     use flexi_logger::*;
 
     let output_file = FileSpec::default()
-        .directory(hopper::OUTPUT_DIR)
+        .directory(hopper::effective_output_dir())
         .basename("fuzzer");
 
     #[cfg(not(feature = "verbose"))]
@@ -31,7 +31,7 @@ fn init_logger() {
         let status_writer = Box::new(
             FileLogWriter::builder(
                 FileSpec::default()
-                    .directory(hopper::OUTPUT_DIR)
+                    .directory(hopper::effective_output_dir())
                     .suppress_timestamp()
                     .basename("status"),
             ).rotate(
@@ -45,7 +45,7 @@ fn init_logger() {
         let status_oneshot_writer = Box::new(
             FileLogWriter::builder(
                 FileSpec::default()
-                    .directory(hopper::OUTPUT_DIR)
+                    .directory(hopper::effective_output_dir())
                     .suppress_timestamp()
                     .basename("status_oneshot"),
             )
